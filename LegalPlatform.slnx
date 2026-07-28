@@ -23,5 +23,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Identity.Tests/Identity.Tests.csproj" />
+    <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
   </Folder>
 </Solution>

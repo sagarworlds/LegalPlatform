@@ -33,3 +33,5 @@ app.MapDefaultEndpoints();
 app.MapReverseProxy();
 
 app.Run();
+
+public partial class Program { }
