@@ -591,6 +591,36 @@
           }
         }
       },
+      "IdentityModel/5.2.0": {
+        "type": "package",
+        "compile": {
+          "lib/net5.0/IdentityModel.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/IdentityModel.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "IdentityModel.OidcClient/5.2.1": {
+        "type": "package",
+        "dependencies": {
+          "IdentityModel": "5.2.0",
+          "Microsoft.Extensions.Logging": "6.0.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/IdentityModel.OidcClient.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/IdentityModel.OidcClient.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Json.More.Net/2.0.1.2": {
         "type": "package",
         "compile": {
@@ -637,19 +667,21 @@
           }
         }
       },
-      "KubernetesClient/19.0.2": {
+      "KubernetesClient/15.0.1": {
         "type": "package",
         "dependencies": {
           "Fractions": "7.3.0",
-          "YamlDotNet": "16.3.0"
+          "IdentityModel.OidcClient": "5.2.1",
+          "System.IdentityModel.Tokens.Jwt": "7.1.2",
+          "YamlDotNet": "16.0.0"
         },
         "compile": {
-          "lib/net10.0/KubernetesClient.dll": {
+          "lib/net8.0/KubernetesClient.dll": {
             "related": ".pdb;.xml"
           }
         },
         "runtime": {
-          "lib/net10.0/KubernetesClient.dll": {
+          "lib/net8.0/KubernetesClient.dll": {
             "related": ".pdb;.xml"
           }
         }
@@ -3002,7 +3034,7 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "YamlDotNet/16.3.0": {
+      "YamlDotNet/16.0.0": {
         "type": "package",
         "compile": {
           "lib/net8.0/YamlDotNet.dll": {
@@ -3985,6 +4017,44 @@
         "logo.png"
       ]
     },
+    "IdentityModel/5.2.0": {
+      "sha512": "nuhkbaDH9l5QzNJp2MtP3qio57MPtiRneUN8Ocr7od0JvSYaIe3gBj/vxllr11S/Qvu1AG4GZXoyv5469ewYDA==",
+      "type": "package",
+      "path": "identitymodel/5.2.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "icon.jpg",
+        "identitymodel.5.2.0.nupkg.sha512",
+        "identitymodel.nuspec",
+        "lib/net461/IdentityModel.dll",
+        "lib/net461/IdentityModel.pdb",
+        "lib/net461/IdentityModel.xml",
+        "lib/net472/IdentityModel.dll",
+        "lib/net472/IdentityModel.pdb",
+        "lib/net472/IdentityModel.xml",
+        "lib/net5.0/IdentityModel.dll",
+        "lib/net5.0/IdentityModel.pdb",
+        "lib/net5.0/IdentityModel.xml",
+        "lib/netstandard2.0/IdentityModel.dll",
+        "lib/netstandard2.0/IdentityModel.pdb",
+        "lib/netstandard2.0/IdentityModel.xml"
+      ]
+    },
+    "IdentityModel.OidcClient/5.2.1": {
+      "sha512": "OuPhDNAw/EoJVEmYO6/ChZUBcug4OGoGKTKLUyBCsGhlKegxJk25LYQ0EL7GCBMgkEL+BYNJukNZyaJ+JNaWog==",
+      "type": "package",
+      "path": "identitymodel.oidcclient/5.2.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "icon.jpg",
+        "identitymodel.oidcclient.5.2.1.nupkg.sha512",
+        "identitymodel.oidcclient.nuspec",
+        "lib/netstandard2.0/IdentityModel.OidcClient.dll",
+        "lib/netstandard2.0/IdentityModel.OidcClient.xml"
+      ]
+    },
     "Json.More.Net/2.0.1.2": {
       "sha512": "uF3QeiaXEfH92emz0/BWUiNtMSfxIIvgynuB0Bf1vF4s8eWTcZitBx9l+g/FDaJk5XxqBv9buQXizXKQcXFG1w==",
       "type": "package",
@@ -4039,24 +4109,21 @@
         "lib/netstandard2.0/JsonPointer.Net.xml"
       ]
     },
-    "KubernetesClient/19.0.2": {
-      "sha512": "0m8FuzCDBygaXMbsb7qVapNZzTm4ftM7ECp/waTRh/XOUQziRF2rKJCRmsvYbBXgJkQvU+FBbkoa40hexzDC+g==",
+    "KubernetesClient/15.0.1": {
+      "sha512": "IOsMJaBpiHELr7ZeiJQypdtLDbc/HqxbEh9UMaDvLpBvGIzS+KhjA0LJVEbGgvubmhWHxLPfgHAL0le1zr2RwA==",
       "type": "package",
-      "path": "kubernetesclient/19.0.2",
+      "path": "kubernetesclient/15.0.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
-        "kubernetesclient.19.0.2.nupkg.sha512",
+        "kubernetesclient.15.0.1.nupkg.sha512",
         "kubernetesclient.nuspec",
-        "lib/net10.0/KubernetesClient.dll",
-        "lib/net10.0/KubernetesClient.pdb",
-        "lib/net10.0/KubernetesClient.xml",
+        "lib/net6.0/KubernetesClient.dll",
+        "lib/net6.0/KubernetesClient.pdb",
+        "lib/net6.0/KubernetesClient.xml",
         "lib/net8.0/KubernetesClient.dll",
         "lib/net8.0/KubernetesClient.pdb",
         "lib/net8.0/KubernetesClient.xml",
-        "lib/net9.0/KubernetesClient.dll",
-        "lib/net9.0/KubernetesClient.pdb",
-        "lib/net9.0/KubernetesClient.xml",
         "logo.png"
       ]
     },
@@ -8001,13 +8068,14 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "YamlDotNet/16.3.0": {
-      "sha512": "SgMOdxbz8X65z8hraIs6hOEdnkH6hESTAIUa7viEngHOYaH+6q5XJmwr1+yb9vJpNQ19hCQY69xbFsLtXpobQA==",
+    "YamlDotNet/16.0.0": {
+      "sha512": "kZ4jR5ltFhnjaUqK9x81zXRIUTH4PTXTTEmJDNQdkDLQhcv+2Nl19r0dCSvPW1mstOYBfXTnjdieRbUO6gHMDw==",
       "type": "package",
-      "path": "yamldotnet/16.3.0",
+      "path": "yamldotnet/16.0.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
+        "LICENSE.txt",
         "README.md",
         "images/yamldotnet.png",
         "lib/net47/YamlDotNet.dll",
@@ -8020,7 +8088,7 @@
         "lib/netstandard2.0/YamlDotNet.xml",
         "lib/netstandard2.1/YamlDotNet.dll",
         "lib/netstandard2.1/YamlDotNet.xml",
-        "yamldotnet.16.3.0.nupkg.sha512",
+        "yamldotnet.16.0.0.nupkg.sha512",
         "yamldotnet.nuspec"
       ]
     },
@@ -8130,7 +8198,6 @@
       "DocumentService >= 1.0.0",
       "Gateway >= 1.0.0",
       "IdentityService >= 1.0.0",
-      "KubernetesClient >= 19.0.2",
       "NotificationService >= 1.0.0",
       "OrganizationService >= 1.0.0",
       "ReportingService >= 1.0.0",
@@ -8242,10 +8309,6 @@
           "Aspire.Hosting.Redis": {
             "target": "Package",
             "version": "[9.0.0, )"
-          },
-          "KubernetesClient": {
-            "target": "Package",
-            "version": "[19.0.2, )"
           }
         },
         "imports": [
@@ -8541,5 +8604,17 @@
         }
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'KubernetesClient' 15.0.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-w7r3-mgwf-4mqq",
+      "libraryId": "KubernetesClient",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
 }

@@ -78,19 +78,7 @@ export class AppComponent implements OnInit {
     const credentials = { email: this.emailInput, password: this.passwordInput };
     this.apiService.login(credentials).subscribe({
       next: (res: any) => {
-        localStorage.setItem('token', res.accessToken);
-        localStorage.setItem('userEmail', this.emailInput);
-        localStorage.setItem('userRole', this.selectedRole);
-        
-        const mockTenant = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
-        localStorage.setItem('userTenant', mockTenant);
-
-        this.userEmail = this.emailInput;
-        this.userRole = this.selectedRole;
-        this.userTenantId = mockTenant;
-        this.isAuthenticated = true;
-        this.loading = false;
-        this.loadActiveTabData();
+        this.processAuthSuccess(res.accessToken, this.emailInput);
       },
       error: () => {
         const registerData = {
@@ -104,31 +92,44 @@ export class AppComponent implements OnInit {
           next: () => {
             this.apiService.login(credentials).subscribe({
               next: (loginRes: any) => {
-                localStorage.setItem('token', loginRes.accessToken);
-                localStorage.setItem('userEmail', this.emailInput);
-                localStorage.setItem('userRole', this.selectedRole);
-                localStorage.setItem('userTenant', registerData.organizationId);
-
-                this.userEmail = this.emailInput;
-                this.userRole = this.selectedRole;
-                this.userTenantId = registerData.organizationId;
-                this.isAuthenticated = true;
-                this.loading = false;
-                this.loadActiveTabData();
+                this.processAuthSuccess(loginRes.accessToken, this.emailInput);
               },
-              error: () => {
-                this.errorMsg = 'Authentication failed. Please verify services are online.';
-                this.loading = false;
-              }
+              error: (err) => this.handleError(err)
             });
           },
-          error: () => {
-            this.errorMsg = 'Authentication failed. Please verify services are online.';
-            this.loading = false;
-          }
+          error: (err) => this.handleError(err)
         });
       }
     });
+  }
+
+  private processAuthSuccess(accessToken: string, email: string) {
+    localStorage.setItem('token', accessToken);
+    
+    const decoded = this.parseJwt(accessToken);
+    const tenantId = decoded?.organizationId || decoded?.tenant_id || '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+    
+    localStorage.setItem('userEmail', email);
+    localStorage.setItem('userRole', this.selectedRole);
+    localStorage.setItem('userTenant', tenantId);
+
+    this.userEmail = email;
+    this.userRole = this.selectedRole;
+    this.userTenantId = tenantId;
+    this.isAuthenticated = true;
+    this.loading = false;
+    this.loadActiveTabData();
+  }
+
+  private parseJwt(token: string): any {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+      return JSON.parse(jsonPayload);
+    } catch {
+      return null;
+    }
   }
 
   logout() {
@@ -304,7 +305,9 @@ export class AppComponent implements OnInit {
 
   private handleError(err: any) {
     this.loading = false;
-    if (err.status === 403) {
+    if (err.status === 0) {
+      this.errorMsg = 'Unable to connect to Gateway API (http://localhost:5000). Please ensure backend services are running.';
+    } else if (err.status === 403) {
       this.errorMsg = 'Forbidden. Your current role does not have authorization to view this resource.';
     } else if (err.status === 429) {
       this.errorMsg = 'Too many requests. You have been rate limited by the API Gateway.';

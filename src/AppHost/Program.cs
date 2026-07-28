@@ -95,6 +95,7 @@ var auditService = builder.AddProject<Projects.AuditService>("auditservice")
 
 // Gateway (YARP Reverse Proxy)
 builder.AddProject<Projects.Gateway>("gateway")
+    .WithHttpEndpoint(port: 5000, name: "http")
     .WithReference(identityService)
     .WithReference(userService)
     .WithReference(organizationService)

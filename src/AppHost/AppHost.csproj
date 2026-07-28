@@ -13,7 +13,6 @@
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="9.0.0" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="9.0.0" />
     <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="9.0.0" />
-    <PackageReference Include="KubernetesClient" Version="19.0.2" />
   </ItemGroup>
 
   <ItemGroup>

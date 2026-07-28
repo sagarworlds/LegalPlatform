@@ -103,10 +103,6 @@
             "Aspire.Hosting.Redis": {
               "target": "Package",
               "version": "[9.0.0, )"
-            },
-            "KubernetesClient": {
-              "target": "Package",
-              "version": "[19.0.2, )"
             }
           },
           "imports": [

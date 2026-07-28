@@ -24,7 +24,7 @@
 
   <div class="flex flex-1">
     <!-- Sidebar Navigation -->
-    <aside class="w-64 border-r border-slate-800 bg-slate-900/40 backdrop-blur-md p-4 hidden md:flex flex-col space-y-2 sticky top-16 h-[calc(100vh-4rem)]">
+    <aside *ngIf="isAuthenticated" class="w-64 border-r border-slate-800 bg-slate-900/40 backdrop-blur-md p-4 hidden md:flex flex-col space-y-2 sticky top-16 h-[calc(100vh-4rem)]">
       <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider px-3 mb-2">Navigation</div>
       
       <button (click)="setTab('dashboard')" [ngClass]="{'bg-sky-500/10 text-sky-400 border-sky-500/30': activeTab === 'dashboard'}" class="flex items-center space-x-3 w-full px-3 py-2.5 rounded-lg border border-transparent text-left text-sm font-medium hover:bg-slate-800/60 transition-all">
