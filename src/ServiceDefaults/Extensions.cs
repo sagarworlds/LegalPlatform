@@ -19,12 +19,20 @@ public static class Extensions
 
         builder.Services.AddServiceDiscovery();
 
+        // Register Global Exception Handling (RFC 7807)
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+        builder.Services.AddProblemDetails();
+
+        // Fail-Fast Startup Configuration Validation
+        var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+        if (jwtSecret != null && jwtSecret.Length < 32)
+        {
+            throw new InvalidOperationException($"The configured JwtSettings:Secret is too weak. It must be at least 32 characters long to satisfy security requirements (current length: {jwtSecret.Length}).");
+        }
+
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Configure resilience filters
             http.AddStandardResilienceHandler();
-
-            // Use service discovery
             http.AddServiceDiscovery();
         });
 
@@ -80,6 +88,8 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
+        app.UseExceptionHandler();
+
         // All health checks
         app.MapHealthChecks("/health");
 
