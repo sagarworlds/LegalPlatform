@@ -49,6 +49,11 @@ public class ReportingService : IProjectMetadata
     public string ProjectPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Services/ReportingService/ReportingService.csproj"));
 }
 
+public class AuditService : IProjectMetadata
+{
+    public string ProjectPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Services/AuditService/AuditService.csproj"));
+}
+
 public class Gateway : IProjectMetadata
 {
     public string ProjectPath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Gateway/Gateway.csproj"));

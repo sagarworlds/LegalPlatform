@@ -10,6 +10,7 @@
     <Project Path="src/BuildingBlocks/SharedKernel/SharedKernel.csproj" />
   </Folder>
   <Folder Name="/src/Services/">
+    <Project Path="src/Services/AuditService/AuditService.csproj" />
     <Project Path="src/Services/CaseService/CaseService.csproj" />
     <Project Path="src/Services/DocumentService/DocumentService.csproj" />
     <Project Path="src/Services/IdentityService/IdentityService.csproj" />

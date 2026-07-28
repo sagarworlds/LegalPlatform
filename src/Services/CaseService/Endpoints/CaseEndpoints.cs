@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using CaseService.Domain;
 using CaseService.Infrastructure;
+using EventBus.Abstractions;
+using Contracts;
 
 namespace CaseService.Endpoints;
 
@@ -30,7 +32,8 @@ public static class CaseEndpoints
     private static async Task<IResult> CreateCaseAsync(
         CreateCaseRequest request,
         HttpContext httpContext,
-        CaseDbContext dbContext)
+        CaseDbContext dbContext,
+        IEventBus eventBus)
     {
         var (userId, tenantId) = GetUserContext(httpContext);
 
@@ -62,6 +65,24 @@ public static class CaseEndpoints
 
         dbContext.Cases.Add(kase);
         await dbContext.SaveChangesAsync();
+
+        var userIdGuid = userId;
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = tenantId,
+            UserId = userIdGuid,
+            ServiceName = "CaseService",
+            EntityType = "Case",
+            EntityId = kase.Id.ToString(),
+            Action = "Create",
+            OldValues = string.Empty,
+            NewValues = $"Title: {kase.Title}, CaseNumber: {kase.CaseNumber}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
 
         return Results.Created($"/api/v1/cases/{kase.Id}", kase);
     }
@@ -105,7 +126,8 @@ public static class CaseEndpoints
         Guid id,
         AddNoteRequest request,
         HttpContext httpContext,
-        CaseDbContext dbContext)
+        CaseDbContext dbContext,
+        IEventBus eventBus)
     {
         var (userId, tenantId) = GetUserContext(httpContext);
 
@@ -127,6 +149,24 @@ public static class CaseEndpoints
 
         kase.TimelineEntries.Add(timeline);
         await dbContext.SaveChangesAsync();
+
+        var userIdGuid = userId;
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = tenantId,
+            UserId = userIdGuid,
+            ServiceName = "CaseService",
+            EntityType = "CaseTimeline",
+            EntityId = timeline.Id.ToString(),
+            Action = "AddNote",
+            OldValues = string.Empty,
+            NewValues = $"CaseId: {id}, Note: {request.EventDescription}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
 
         return Results.Ok(timeline);
     }

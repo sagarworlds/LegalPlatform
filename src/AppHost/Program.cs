@@ -38,6 +38,7 @@ var caseDb = postgres.AddDatabase("case_db");
 var workflowDb = postgres.AddDatabase("workflow_db");
 var notificationDb = postgres.AddDatabase("notification_db");
 var reportingDb = postgres.AddDatabase("reporting_db");
+var auditDb = postgres.AddDatabase("audit_db");
 
 // Service Declarations
 var identityService = builder.AddProject<Projects.IdentityService>("identityservice")
@@ -78,12 +79,17 @@ var notificationService = builder.AddProject<Projects.NotificationService>("noti
     .WithReference(rabbitmq);
 
 var searchService = builder.AddProject<Projects.SearchService>("searchservice")
-    .WithReference(elasticsearch.GetEndpoint("http")) // Bind Elasticsearch connection string key "elasticsearch" to http endpoint
+    .WithReference(elasticsearch.GetEndpoint("http"))
     .WithReference(redis)
     .WithReference(rabbitmq);
 
 var reportingService = builder.AddProject<Projects.ReportingService>("reportingservice")
     .WithReference(reportingDb)
+    .WithReference(redis)
+    .WithReference(rabbitmq);
+
+var auditService = builder.AddProject<Projects.AuditService>("auditservice")
+    .WithReference(auditDb)
     .WithReference(redis)
     .WithReference(rabbitmq);
 
@@ -98,6 +104,7 @@ builder.AddProject<Projects.Gateway>("gateway")
     .WithReference(notificationService)
     .WithReference(searchService)
     .WithReference(reportingService)
+    .WithReference(auditService)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

@@ -3034,6 +3034,28 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "AuditService/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.0",
+          "Contracts": "1.0.0",
+          "Microsoft.AspNetCore.Authentication.JwtBearer": "9.0.0",
+          "Microsoft.EntityFrameworkCore.Tools": "9.0.0",
+          "ServiceDefaults": "1.0.0",
+          "SharedKernel": "1.0.0",
+          "Swashbuckle.AspNetCore": "6.6.2"
+        },
+        "compile": {
+          "bin/placeholder/AuditService.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/AuditService.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "CaseService/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -8021,6 +8043,11 @@
         "yarp.reverseproxy.nuspec"
       ]
     },
+    "AuditService/1.0.0": {
+      "type": "project",
+      "path": "../Services/AuditService/AuditService.csproj",
+      "msbuildProject": "../Services/AuditService/AuditService.csproj"
+    },
     "CaseService/1.0.0": {
       "type": "project",
       "path": "../Services/CaseService/CaseService.csproj",
@@ -8098,6 +8125,7 @@
       "Aspire.Hosting.PostgreSQL >= 9.0.0",
       "Aspire.Hosting.RabbitMQ >= 9.0.0",
       "Aspire.Hosting.Redis >= 9.0.0",
+      "AuditService >= 1.0.0",
       "CaseService >= 1.0.0",
       "DocumentService >= 1.0.0",
       "Gateway >= 1.0.0",
@@ -8148,6 +8176,9 @@
           "projectReferences": {
             "D:\\Study\\LegalPlatefomInfrastucture\\src\\Gateway\\Gateway.csproj": {
               "projectPath": "D:\\Study\\LegalPlatefomInfrastucture\\src\\Gateway\\Gateway.csproj"
+            },
+            "D:\\Study\\LegalPlatefomInfrastucture\\src\\Services\\AuditService\\AuditService.csproj": {
+              "projectPath": "D:\\Study\\LegalPlatefomInfrastucture\\src\\Services\\AuditService\\AuditService.csproj"
             },
             "D:\\Study\\LegalPlatefomInfrastucture\\src\\Services\\CaseService\\CaseService.csproj": {
               "projectPath": "D:\\Study\\LegalPlatefomInfrastucture\\src\\Services\\CaseService\\CaseService.csproj"

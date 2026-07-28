@@ -12,6 +12,8 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using DocumentService.Domain;
 using DocumentService.Infrastructure;
+using EventBus.Abstractions;
+using Contracts;
 
 namespace DocumentService.Endpoints;
 
@@ -39,7 +41,8 @@ public static class DocumentEndpoints
         string title,
         string category,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client)
+        IAmazonS3 s3Client,
+        IEventBus eventBus)
     {
         var (userId, tenantId) = GetUserContext(httpContext);
 
@@ -80,6 +83,24 @@ public static class DocumentEndpoints
         dbContext.Documents.Add(document);
         await dbContext.SaveChangesAsync();
 
+        var userIdGuid = userId;
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = tenantId,
+            UserId = userIdGuid,
+            ServiceName = "DocumentService",
+            EntityType = "Document",
+            EntityId = document.Id.ToString(),
+            Action = "Upload",
+            OldValues = string.Empty,
+            NewValues = $"Title: {document.Title}, File: {version.FileName}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
+
         return Results.Ok(new { DocumentId = document.Id, VersionId = version.VersionId, Message = "Document uploaded successfully." });
     }
 
@@ -89,7 +110,8 @@ public static class DocumentEndpoints
         IFormFile file,
         string changeComment,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client)
+        IAmazonS3 s3Client,
+        IEventBus eventBus)
     {
         var (userId, tenantId) = GetUserContext(httpContext);
 
@@ -143,6 +165,24 @@ public static class DocumentEndpoints
 
         await dbContext.SaveChangesAsync();
 
+        var userIdGuid = userId;
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = tenantId,
+            UserId = userIdGuid,
+            ServiceName = "DocumentService",
+            EntityType = "DocumentVersion",
+            EntityId = version.VersionId.ToString(),
+            Action = "UploadVersion",
+            OldValues = string.Empty,
+            NewValues = $"DocumentId: {document.Id}, Version: {version.VersionNumber}, File: {version.FileName}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
+
         return Results.Ok(new { DocumentId = document.Id, VersionId = version.VersionId, Message = "New document version uploaded successfully." });
     }
 
@@ -178,7 +218,8 @@ public static class DocumentEndpoints
         Guid id,
         HttpContext httpContext,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client)
+        IAmazonS3 s3Client,
+        IEventBus eventBus)
     {
         var (_, tenantId) = GetUserContext(httpContext);
 
@@ -192,6 +233,25 @@ public static class DocumentEndpoints
         }
 
         var response = await s3Client.GetObjectAsync(BucketName, document.CurrentVersion.StoragePath);
+
+        var userIdGuid = Guid.TryParse(httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : Guid.Empty;
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = tenantId,
+            UserId = userIdGuid,
+            ServiceName = "DocumentService",
+            EntityType = "Document",
+            EntityId = document.Id.ToString(),
+            Action = "Download",
+            OldValues = string.Empty,
+            NewValues = $"FileName: {document.CurrentVersion.FileName}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
+
         return Results.File(response.ResponseStream, document.CurrentVersion.MIMEType, document.CurrentVersion.FileName);
     }
 
@@ -200,7 +260,8 @@ public static class DocumentEndpoints
         Guid versionId,
         HttpContext httpContext,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client)
+        IAmazonS3 s3Client,
+        IEventBus eventBus)
     {
         var (_, tenantId) = GetUserContext(httpContext);
 
@@ -214,6 +275,25 @@ public static class DocumentEndpoints
         }
 
         var response = await s3Client.GetObjectAsync(BucketName, version.StoragePath);
+
+        var userIdGuid = Guid.TryParse(httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : Guid.Empty;
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = tenantId,
+            UserId = userIdGuid,
+            ServiceName = "DocumentService",
+            EntityType = "DocumentVersion",
+            EntityId = version.VersionId.ToString(),
+            Action = "DownloadVersion",
+            OldValues = string.Empty,
+            NewValues = $"DocumentId: {id}, Version: {version.VersionNumber}, FileName: {version.FileName}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
+
         return Results.File(response.ResponseStream, version.MIMEType, version.FileName);
     }
 

@@ -27,12 +27,29 @@ public static class IdentityEndpoints
 
     private static async Task<IResult> RegisterAsync(
         RegisterRequest request,
+        HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         IEventBus eventBus)
     {
         var userExists = await userManager.FindByEmailAsync(request.Email);
         if (userExists != null)
         {
+            await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+            {
+                TenantId = request.OrganizationId ?? Guid.Empty,
+                UserId = Guid.Empty,
+                ServiceName = "IdentityService",
+                EntityType = "User",
+                EntityId = "RegistrationFailed",
+                Action = "Register",
+                OldValues = string.Empty,
+                NewValues = $"Email: {request.Email}, Reason: User already exists",
+                IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+                CorrelationId = httpContext.TraceIdentifier,
+                TraceId = httpContext.TraceIdentifier,
+                Outcome = "Failure"
+            });
             return Results.BadRequest(new { Message = "User already exists with this email." });
         }
 
@@ -52,10 +69,8 @@ public static class IdentityEndpoints
             return Results.BadRequest(result.Errors);
         }
 
-        // Add user role by default
         await userManager.AddToRoleAsync(user, "User");
 
-        // Publish integration event for UserService
         await eventBus.PublishAsync(new UserRegisteredIntegrationEvent
         {
             UserId = user.Id,
@@ -65,17 +80,52 @@ public static class IdentityEndpoints
             OrganizationId = user.OrganizationId
         });
 
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = user.OrganizationId ?? Guid.Empty,
+            UserId = user.Id,
+            ServiceName = "IdentityService",
+            EntityType = "User",
+            EntityId = user.Id.ToString(),
+            Action = "Register",
+            OldValues = string.Empty,
+            NewValues = $"Email: {user.Email}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
+
         return Results.Ok(new { Message = "User registered successfully." });
     }
 
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
+        HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IEventBus eventBus)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user == null || !await userManager.CheckPasswordAsync(user, request.Password))
         {
+            await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+            {
+                TenantId = Guid.Empty,
+                UserId = Guid.Empty,
+                ServiceName = "IdentityService",
+                EntityType = "User",
+                EntityId = "LoginFailed",
+                Action = "Login",
+                OldValues = string.Empty,
+                NewValues = $"Email: {request.Email}",
+                IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+                CorrelationId = httpContext.TraceIdentifier,
+                TraceId = httpContext.TraceIdentifier,
+                Outcome = "Failure"
+            });
             return Results.Unauthorized();
         }
 
@@ -87,13 +137,32 @@ public static class IdentityEndpoints
         user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
         await userManager.UpdateAsync(user);
 
+        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+        {
+            TenantId = user.OrganizationId ?? Guid.Empty,
+            UserId = user.Id,
+            ServiceName = "IdentityService",
+            EntityType = "User",
+            EntityId = user.Id.ToString(),
+            Action = "Login",
+            OldValues = string.Empty,
+            NewValues = $"Email: {user.Email}",
+            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+            CorrelationId = httpContext.TraceIdentifier,
+            TraceId = httpContext.TraceIdentifier,
+            Outcome = "Success"
+        });
+
         return Results.Ok(new AuthResponse(accessToken, refreshToken, DateTime.UtcNow.AddMinutes(60)));
     }
 
     private static async Task<IResult> RefreshTokenAsync(
         RefreshTokenRequest request,
+        HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IEventBus eventBus)
     {
         try
         {
@@ -116,6 +185,23 @@ public static class IdentityEndpoints
 
             user.RefreshToken = newRefreshToken;
             await userManager.UpdateAsync(user);
+
+            await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
+            {
+                TenantId = user.OrganizationId ?? Guid.Empty,
+                UserId = user.Id,
+                ServiceName = "IdentityService",
+                EntityType = "User",
+                EntityId = user.Id.ToString(),
+                Action = "RefreshToken",
+                OldValues = string.Empty,
+                NewValues = $"Email: {user.Email}",
+                IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
+                CorrelationId = httpContext.TraceIdentifier,
+                TraceId = httpContext.TraceIdentifier,
+                Outcome = "Success"
+            });
 
             return Results.Ok(new AuthResponse(newAccessToken, newRefreshToken, DateTime.UtcNow.AddMinutes(60)));
         }
