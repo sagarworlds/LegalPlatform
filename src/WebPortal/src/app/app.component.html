@@ -1,0 +1,378 @@
+<div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+  
+  <!-- Top Navbar -->
+  <header class="h-16 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-40">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-sky-500/20">L</div>
+      <span class="text-xl font-bold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">LEGAL<span class="text-sky-500">PLATFORM</span></span>
+    </div>
+    
+    <div class="flex items-center space-x-4" *ngIf="isAuthenticated">
+      <div class="flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/50">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-xs font-semibold text-slate-300">{{ userRole }}</span>
+      </div>
+      <div class="text-xs text-slate-400">
+        <span class="block font-medium text-slate-300">{{ userEmail }}</span>
+        <span>Tenant: {{ userTenantId.substring(0, 8) }}...</span>
+      </div>
+      <button (click)="logout()" class="px-3 py-1.5 bg-slate-800 hover:bg-rose-950/80 hover:text-rose-200 border border-slate-700/60 rounded-md text-xs font-semibold transition-all">
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-1">
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 border-r border-slate-800 bg-slate-900/40 backdrop-blur-md p-4 hidden md:flex flex-col space-y-2 sticky top-16 h-[calc(100vh-4rem)]">
+      <div class="text-slate-500 text-[10px] font-bold uppercase tracking-wider px-3 mb-2">Navigation</div>
+      
+      <button (click)="setTab('dashboard')" [ngClass]="{'bg-sky-500/10 text-sky-400 border-sky-500/30': activeTab === 'dashboard'}" class="flex items-center space-x-3 w-full px-3 py-2.5 rounded-lg border border-transparent text-left text-sm font-medium hover:bg-slate-800/60 transition-all">
+        <span class="text-lg">📊</span>
+        <span>Dashboard</span>
+      </button>
+      
+      <button (click)="setTab('cases')" [ngClass]="{'bg-sky-500/10 text-sky-400 border-sky-500/30': activeTab === 'cases'}" class="flex items-center space-x-3 w-full px-3 py-2.5 rounded-lg border border-transparent text-left text-sm font-medium hover:bg-slate-800/60 transition-all">
+        <span class="text-lg">💼</span>
+        <span>Cases</span>
+      </button>
+      
+      <button (click)="setTab('documents')" [ngClass]="{'bg-sky-500/10 text-sky-400 border-sky-500/30': activeTab === 'documents'}" class="flex items-center space-x-3 w-full px-3 py-2.5 rounded-lg border border-transparent text-left text-sm font-medium hover:bg-slate-800/60 transition-all">
+        <span class="text-lg">📄</span>
+        <span>Documents</span>
+      </button>
+      
+      <button (click)="setTab('search')" [ngClass]="{'bg-sky-500/10 text-sky-400 border-sky-500/30': activeTab === 'search'}" class="flex items-center space-x-3 w-full px-3 py-2.5 rounded-lg border border-transparent text-left text-sm font-medium hover:bg-slate-800/60 transition-all">
+        <span class="text-lg">🔍</span>
+        <span>Fuzzy Search</span>
+      </button>
+      
+      <button (click)="setTab('audit')" [ngClass]="{'bg-sky-500/10 text-sky-400 border-sky-500/30': activeTab === 'audit'}" class="flex items-center space-x-3 w-full px-3 py-2.5 rounded-lg border border-transparent text-left text-sm font-medium hover:bg-slate-800/60 transition-all">
+        <span class="text-lg">🔒</span>
+        <span>Audit Logs</span>
+      </button>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+      
+      <!-- Login Overlay -->
+      <div *ngIf="!isAuthenticated" class="max-w-md mx-auto my-12 bg-slate-900/80 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur-md">
+        <div class="text-center mb-8">
+          <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Admin Console Sign In</h2>
+          <p class="text-slate-400 text-xs mt-1">Access simulated environment identity credentials</p>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Role Simulation Profile</label>
+            <select [(ngModel)]="selectedRole" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500">
+              <option value="SystemAdmin">SystemAdmin (Global Access)</option>
+              <option value="ComplianceOfficer">ComplianceOfficer (Tenant Restricted)</option>
+              <option value="SecurityAuditor">SecurityAuditor (Tenant Restricted)</option>
+              <option value="OrganizationAdmin">OrganizationAdmin (Tenant Restricted)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Simulated Email</label>
+            <input type="email" [(ngModel)]="emailInput" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Password</label>
+            <input type="password" [(ngModel)]="passwordInput" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500">
+          </div>
+
+          <div *ngIf="errorMsg" class="p-3 bg-rose-950/40 border border-rose-800/40 text-rose-300 rounded-lg text-xs">
+            {{ errorMsg }}
+          </div>
+
+          <button (click)="login()" [disabled]="loading" class="w-full py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-all">
+            {{ loading ? 'Signing In...' : 'Verify & Sign In' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Tabs Container -->
+      <div *ngIf="isAuthenticated">
+        
+        <!-- Error Banner -->
+        <div *ngIf="errorMsg" class="mb-6 p-4 bg-rose-950/40 border border-rose-800/40 text-rose-300 rounded-xl text-xs flex justify-between items-center">
+          <span>{{ errorMsg }}</span>
+          <button (click)="errorMsg = ''" class="text-rose-400 hover:text-rose-200 font-bold">Dismiss</button>
+        </div>
+
+        <!-- Loading spinner -->
+        <div *ngIf="loading" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <!-- Tab 1: Dashboard -->
+        <div *ngIf="activeTab === 'dashboard'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-slate-100">Analytics Dashboard</h1>
+            <span class="text-xs text-slate-400" *ngIf="lastUpdated">Updated: {{ lastUpdated | date:'mediumTime' }}</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Workflows Assigned</span>
+              <span class="text-4xl font-extrabold text-slate-100 mt-2">{{ workflowsAssigned }}</span>
+            </div>
+            
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Workflows Completed</span>
+              <span class="text-4xl font-extrabold text-slate-100 mt-2">{{ workflowsCompleted }}</span>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Completion Rate</span>
+              <span class="text-4xl font-extrabold text-sky-400 mt-2">{{ completionRate | number:'1.1-1' }}%</span>
+              
+              <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden mt-4">
+                <div class="bg-gradient-to-r from-sky-500 to-indigo-600 h-full rounded-full" [style.width.%]="completionRate"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Extra chart display -->
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+            <h2 class="text-sm font-bold text-slate-300 mb-4">Real-time Approval Progress (Reporting read-model)</h2>
+            <div class="h-64 flex items-end justify-center space-x-12 pb-4">
+              <div class="flex flex-col items-center">
+                <div class="w-16 bg-slate-800 rounded-t-lg relative" [style.height.px]="workflowsAssigned * 20 + 20">
+                  <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold">{{ workflowsAssigned }}</span>
+                </div>
+                <span class="text-xs mt-2 text-slate-400">Assigned</span>
+              </div>
+
+              <div class="flex flex-col items-center">
+                <div class="w-16 bg-gradient-to-t from-sky-600 to-sky-400 rounded-t-lg relative" [style.height.px]="workflowsCompleted * 20 + 20">
+                  <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-sky-400">{{ workflowsCompleted }}</span>
+                </div>
+                <span class="text-xs mt-2 text-slate-400">Completed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Cases -->
+        <div *ngIf="activeTab === 'cases'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="flex justify-between items-center">
+              <h1 class="text-2xl font-bold">Active Law Cases</h1>
+              <span class="text-xs text-slate-400">Count: {{ cases.length }}</span>
+            </div>
+
+            <!-- List of cases -->
+            <div class="grid gap-4">
+              <div *ngFor="let c of cases" (click)="selectCase(c)" [class.border-sky-500]="selectedCase?.id === c.id" class="p-5 bg-slate-900/50 border border-slate-800/80 rounded-xl hover:bg-slate-800/40 cursor-pointer transition-all">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-bold text-slate-200">{{ c.title }}</h3>
+                    <span class="text-xs text-slate-400 block mt-1">Number: {{ c.caseNumber }}</span>
+                  </div>
+                  <span class="text-xs px-2.5 py-1 bg-slate-800 border border-slate-700/60 rounded-full font-semibold text-slate-300">Active</span>
+                </div>
+                <p class="text-slate-400 text-xs mt-3 line-clamp-2">{{ c.description }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline & Creation side panel -->
+          <div class="space-y-6">
+            <!-- Create Case -->
+            <div class="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
+              <h2 class="text-sm font-bold text-slate-200 mb-4">Initialize Case</h2>
+              <div class="space-y-3">
+                <input type="text" placeholder="Title" [(ngModel)]="newCaseTitle" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <input type="text" placeholder="Case Number" [(ngModel)]="newCaseNumber" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <textarea placeholder="Description" [(ngModel)]="newCaseDescription" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 h-20 focus:outline-none focus:border-sky-500"></textarea>
+                <input type="date" [(ngModel)]="newCaseDeadline" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <button (click)="createCase()" class="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold transition-all">Create Case</button>
+              </div>
+            </div>
+
+            <!-- Timeline viewer -->
+            <div class="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl" *ngIf="selectedCase">
+              <h2 class="text-sm font-bold text-slate-200 mb-4">Timeline Notes: {{ selectedCase.title }}</h2>
+              
+              <!-- Timeline Note Feed -->
+              <div class="space-y-4 max-h-60 overflow-y-auto pr-2 mb-4">
+                <div *ngFor="let entry of selectedCase.timelineEntries" class="border-l-2 border-sky-500 pl-4 py-1">
+                  <p class="text-xs text-slate-300 font-medium">{{ entry.eventDescription }}</p>
+                  <span class="text-[10px] text-slate-500 block mt-1">By: {{ entry.createdBy }} | {{ entry.timestamp | date:'short' }}</span>
+                </div>
+              </div>
+
+              <!-- Add timeline note -->
+              <div class="flex space-x-2">
+                <input type="text" placeholder="Add chronological event..." [(ngModel)]="newTimelineNote" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <button (click)="addCaseNote()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition-all">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Documents -->
+        <div *ngIf="activeTab === 'documents'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <h1 class="text-2xl font-bold">Documents & Versions</h1>
+            
+            <div class="grid gap-4">
+              <div *ngFor="let doc of documents" (click)="selectDocument(doc)" [class.border-sky-500]="selectedDocument?.id === doc.id" class="p-5 bg-slate-900/50 border border-slate-800/80 rounded-xl hover:bg-slate-800/40 cursor-pointer transition-all">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="font-bold text-slate-200">{{ doc.title }}</h3>
+                    <span class="text-xs text-slate-400 block mt-1">Category: {{ doc.category }}</span>
+                  </div>
+                  <span class="text-xs px-2.5 py-1 bg-slate-800 border border-slate-700/60 rounded-full font-semibold text-slate-300">v{{ doc.versions?.length || 1 }}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-2">Owner: {{ doc.ownerId }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Upload & Versions viewer -->
+          <div class="space-y-6">
+            <!-- Upload Document -->
+            <div class="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
+              <h2 class="text-sm font-bold text-slate-200 mb-4">Upload Contract</h2>
+              <div class="space-y-3">
+                <input type="text" placeholder="Document Title" [(ngModel)]="newDocumentTitle" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+                <select [(ngModel)]="newDocumentCategory" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none">
+                  <option value="Contract">Contract</option>
+                  <option value="Pleading">Pleading</option>
+                  <option value="Evidence">Evidence</option>
+                </select>
+                <input type="file" (change)="onFileSelected($event)" class="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700">
+                <button (click)="uploadDocument()" class="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold transition-all">Upload File (S3)</button>
+              </div>
+            </div>
+
+            <!-- Version History Viewer -->
+            <div class="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl" *ngIf="selectedDocument">
+              <h2 class="text-sm font-bold text-slate-200 mb-4">Immutable Versions: {{ selectedDocument.title }}</h2>
+              <div class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                <div *ngFor="let ver of selectedDocument.versions" class="p-3 bg-slate-950/80 border border-slate-800 rounded-lg text-xs flex flex-col space-y-1">
+                  <div class="flex justify-between items-center">
+                    <span class="font-bold text-sky-400">Version {{ ver.versionNumber }}</span>
+                    <span class="text-[10px] text-slate-500">{{ ver.fileSize | number }} bytes</span>
+                  </div>
+                  <span class="text-slate-300 font-medium truncate">{{ ver.fileName }}</span>
+                  <div class="text-[9px] text-slate-500">Hash: {{ ver.shA256Hash?.substring(0, 16) }}...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Search -->
+        <div *ngIf="activeTab === 'search'" class="space-y-6">
+          <h1 class="text-2xl font-bold">Fuzzy Full-Text Search</h1>
+
+          <div class="flex space-x-3">
+            <input type="text" placeholder="Fuzzy multi-match search..." [(ngModel)]="searchQuery" (keyup.enter)="runSearch()" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-sky-500">
+            <select [(ngModel)]="searchTypeFilter" class="bg-slate-900 border border-slate-800 rounded-xl px-4 text-sm text-slate-200 focus:outline-none">
+              <option value="">All Types</option>
+              <option value="Case">Case</option>
+              <option value="Document">Document</option>
+            </select>
+            <button (click)="runSearch()" class="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-semibold transition-all">Search</button>
+          </div>
+
+          <!-- Search Results list -->
+          <div class="space-y-4">
+            <div *ngFor="let res of searchResults" class="p-5 bg-slate-900/50 border border-slate-800/80 rounded-xl">
+              <div class="flex justify-between items-start">
+                <span class="text-xs px-2.5 py-1 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full font-semibold">{{ res.type }}</span>
+                <span class="text-xs text-slate-500">Score: {{ res.score }}</span>
+              </div>
+              <h3 class="font-bold text-slate-200 mt-2">{{ res.title }}</h3>
+              <p class="text-slate-400 text-xs mt-2">{{ res.description }}</p>
+            </div>
+
+            <div *ngIf="searchResults.length === 0 && searchQuery" class="text-center py-12 text-slate-500 text-sm">
+              No fuzzy matches found in Elasticsearch.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Audit -->
+        <div *ngIf="activeTab === 'audit'" class="space-y-6">
+          <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Immutable System Audit Trail</h1>
+            
+            <div class="flex space-x-2">
+              <button (click)="exportAuditLogs('csv')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5">
+                <span>Export CSV</span>
+              </button>
+              <button (click)="exportAuditLogs('pdf')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5">
+                <span>Export PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex space-x-3">
+            <select [(ngModel)]="auditActionFilter" (change)="loadAuditLogs()" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none">
+              <option value="">All Actions</option>
+              <option value="Register">Register</option>
+              <option value="Login">Login</option>
+              <option value="Upload">Upload</option>
+              <option value="Download">Download</option>
+              <option value="Create">Create</option>
+              <option value="Export">Export</option>
+            </select>
+
+            <select [(ngModel)]="auditTypeFilter" (change)="loadAuditLogs()" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none">
+              <option value="">All Entities</option>
+              <option value="User">User</option>
+              <option value="Document">Document</option>
+              <option value="Case">Case</option>
+              <option value="AuditLog">AuditLog</option>
+            </select>
+          </div>
+
+          <!-- Audit Logs Grid Table -->
+          <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-900/60">
+                    <th class="py-3 px-4">Timestamp</th>
+                    <th class="py-3 px-4">Service</th>
+                    <th class="py-3 px-4">Action</th>
+                    <th class="py-3 px-4">Outcome</th>
+                    <th class="py-3 px-4">Details</th>
+                    <th class="py-3 px-4">IP Address</th>
+                    <th class="py-3 px-4">Integrity Hash</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-xs">
+                  <tr *ngFor="let log of auditLogs" class="hover:bg-slate-900/20 transition-all">
+                    <td class="py-3 px-4 text-slate-400 whitespace-nowrap">{{ log.timestamp | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+                    <td class="py-3 px-4 text-slate-300 font-semibold">{{ log.serviceName }}</td>
+                    <td class="py-3 px-4">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold" [class.bg-sky-950]="log.action === 'Login'" [class.text-sky-400]="log.action === 'Login'" [class.bg-emerald-950]="log.action === 'Upload'" [class.text-emerald-400]="log.action === 'Upload'" [class.bg-violet-950]="log.action === 'Export'" [class.text-violet-400]="log.action === 'Export'">{{ log.action }}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                      <span class="text-xs font-semibold" [class.text-emerald-500]="log.outcome === 'Success'" [class.text-rose-500]="log.outcome !== 'Success'">{{ log.outcome }}</span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-300 max-w-xs truncate" title="{{ log.newValues }}">{{ log.newValues }}</td>
+                    <td class="py-3 px-4 text-slate-400">{{ log.iPAddress }}</td>
+                    <td class="py-3 px-4">
+                      <span class="text-[9px] font-mono text-emerald-400 bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-900/30" title="Tamper-detection hash matches computed properties">✓ {{ log.hash?.substring(0, 8) }}...</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+</div>
