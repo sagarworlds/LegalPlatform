@@ -3,10 +3,22 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using System;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+// Enable CORS for local Angular development portal
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -25,6 +37,8 @@ builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+
+app.UseCors("CorsPolicy");
 
 app.UseRateLimiter();
 
