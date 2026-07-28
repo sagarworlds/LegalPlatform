@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "OrganizationService": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:64124;http://localhost:64127"
+    }
+  }
+}

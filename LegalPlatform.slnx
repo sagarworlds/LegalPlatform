@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AppHost/AppHost.csproj" />
+    <Project Path="src/Gateway/Gateway.csproj" />
+    <Project Path="src/ServiceDefaults/ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Contracts/Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/EventBus/EventBus.csproj" />
+    <Project Path="src/BuildingBlocks/SharedKernel/SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/">
+    <Project Path="src/Services/CaseService/CaseService.csproj" />
+    <Project Path="src/Services/DocumentService/DocumentService.csproj" />
+    <Project Path="src/Services/IdentityService/IdentityService.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.csproj" />
+    <Project Path="src/Services/OrganizationService/OrganizationService.csproj" />
+    <Project Path="src/Services/ReportingService/ReportingService.csproj" />
+    <Project Path="src/Services/SearchService/SearchService.csproj" />
+    <Project Path="src/Services/UserService/UserService.csproj" />
+    <Project Path="src/Services/WorkflowService/WorkflowService.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Identity.Tests/Identity.Tests.csproj" />
+  </Folder>
+</Solution>

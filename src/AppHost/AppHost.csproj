@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAspireHost>true</IsAspireHost>
+    <AspireHostingSDKVersion>9.0.0</AspireHostingSDKVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.0.0" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="9.0.0" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="9.0.0" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="9.0.0" />
+    <PackageReference Include="KubernetesClient" Version="19.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gateway\Gateway.csproj" />
+    <ProjectReference Include="..\Services\IdentityService\IdentityService.csproj" />
+    <ProjectReference Include="..\Services\UserService\UserService.csproj" />
+    <ProjectReference Include="..\Services\OrganizationService\OrganizationService.csproj" />
+    <ProjectReference Include="..\Services\DocumentService\DocumentService.csproj" />
+    <ProjectReference Include="..\Services\CaseService\CaseService.csproj" />
+    <ProjectReference Include="..\Services\WorkflowService\WorkflowService.csproj" />
+    <ProjectReference Include="..\Services\NotificationService\NotificationService.csproj" />
+    <ProjectReference Include="..\Services\SearchService\SearchService.csproj" />
+    <ProjectReference Include="..\Services\ReportingService\ReportingService.csproj" />
+  </ItemGroup>
+
+</Project>

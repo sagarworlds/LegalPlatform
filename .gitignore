@@ -1,0 +1,51 @@
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Release]/
+[Releases]/
+x64/
+x86/
+build/
+bld/
+[Bin]/
+[Obj]/
+[Log]/
+[Logs]/
+
+# Visual Studio 2015/2017/2019/2022 cache/options directory
+.vs/
+# Open folder Office hosting temporary files
+.specflow-nuget-path.txt
+
+# Mono Auto Generated Files
+mono_crash.*
+
+# Rider
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Aspire dashboard configuration
+aspire-manifest.json
+
+# Local history
+.history/
+
+# OS-generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
