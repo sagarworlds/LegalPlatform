@@ -1,6 +1,8 @@
 # Legal Platform Infrastructure
 
-An enterprise-grade Legal Workflow and Document Management platform architecture orchestrated using **.NET Aspire**, backing microservices via event-driven pub/sub on **RabbitMQ**, search indexing on **Elasticsearch**, object storage on **MinIO S3**, and an administrative portal in **Angular 18 & Tailwind CSS**.
+[![.NET](https://img.shields.io/badge/.NET-10-blue?logo=dotnet)](https://dotnet.microsoft.com/) [![Docker](https://img.shields.io/badge/Docker-%232496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/) [![Node.js](https://img.shields.io/badge/Node.js-20.x-green?logo=node.js&logoColor=white)](https://nodejs.org/) [![Angular](https://img.shields.io/badge/Angular-18-red?logo=angular&logoColor=white)](https://angular.io/) [![RabbitMQ](https://img.shields.io/badge/RabbitMQ-orange?logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/) [![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.11.1-004970?logo=elastic&logoColor=white)](https://www.elastic.co/) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![MinIO](https://img.shields.io/badge/MinIO-S3-orange?logo=minio&logoColor=white)](https://min.io/) [![Mailpit](https://img.shields.io/badge/Mailpit-smtp-9cf?logo=mailchimp&logoColor=white)](https://github.com/axllent/mailpit)
+
+An enterprise-grade Legal Workflow and Document Management platform architecture orchestrated using **.NET Aspire**, backing microservices via event-driven pub/sub on **RabbitMQ**, search indexing [...] 
 
 ---
 
@@ -61,7 +63,7 @@ An enterprise-grade Legal Workflow and Document Management platform architecture
 ## Scaffolding Layout
 
 ```
-d:\Study\LegalPlatefomInfrastucture\
+ d:\Study\LegalPlatefomInfrastucture\
  ├── src/
  │    ├── AppHost/               # .NET Aspire Orchestration Host
  │    ├── ServiceDefaults/       # Shared Resilience, Diagnostics, Exception Handler
