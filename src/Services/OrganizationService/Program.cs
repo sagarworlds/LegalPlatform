@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // PostgreSQL Database integration via Aspire resource connection
-builder.AddNpgsqlDbContext<OrganizationDbContext>("organization_db");
+builder.AddNpgsqlDbContext<OrganizationDbContext>("organization-db");
 
 // EventBus for publishing integration events
 builder.Services.AddEventBus(builder.Configuration);

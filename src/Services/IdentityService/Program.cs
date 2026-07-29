@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // PostgreSQL Database integration via Aspire resource connection
-builder.AddNpgsqlDbContext<IdentityDbContext>("identity_db");
+builder.AddNpgsqlDbContext<IdentityDbContext>("identity-db");
 
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
     .AddEntityFrameworkStores<IdentityDbContext>()

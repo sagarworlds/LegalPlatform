@@ -30,15 +30,15 @@ var elasticsearch = builder.AddContainer("elasticsearch", "docker.elastic.co/ela
     .WithEnvironment("ELASTIC_PASSWORD", "devpassword123");
 
 // Individual PostgreSQL databases per microservice
-var identityDb = postgres.AddDatabase("identity_db");
-var userDb = postgres.AddDatabase("user_db");
-var organizationDb = postgres.AddDatabase("organization_db");
-var documentDb = postgres.AddDatabase("document_db");
-var caseDb = postgres.AddDatabase("case_db");
-var workflowDb = postgres.AddDatabase("workflow_db");
-var notificationDb = postgres.AddDatabase("notification_db");
-var reportingDb = postgres.AddDatabase("reporting_db");
-var auditDb = postgres.AddDatabase("audit_db");
+var identityDb = postgres.AddDatabase("identity-db", "identity_db");
+var userDb = postgres.AddDatabase("user-db", "user_db");
+var organizationDb = postgres.AddDatabase("organization-db", "organization_db");
+var documentDb = postgres.AddDatabase("document-db", "document_db");
+var caseDb = postgres.AddDatabase("case-db", "case_db");
+var workflowDb = postgres.AddDatabase("workflow-db", "workflow_db");
+var notificationDb = postgres.AddDatabase("notification-db", "notification_db");
+var reportingDb = postgres.AddDatabase("reporting-db", "reporting_db");
+var auditDb = postgres.AddDatabase("audit-db", "audit_db");
 
 // Service Declarations
 var identityService = builder.AddProject<Projects.IdentityService>("identityservice")
@@ -95,7 +95,6 @@ var auditService = builder.AddProject<Projects.AuditService>("auditservice")
 
 // Gateway (YARP Reverse Proxy)
 builder.AddProject<Projects.Gateway>("gateway")
-    .WithHttpEndpoint(port: 5000, name: "http")
     .WithReference(identityService)
     .WithReference(userService)
     .WithReference(organizationService)

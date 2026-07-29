@@ -16,8 +16,10 @@ build/
 bld/
 [Bin]/
 [Obj]/
+[obj]/
 [Log]/
 [Logs]/
+src/AppHost/obj
 
 # Visual Studio 2015/2017/2019/2022 cache/options directory
 .vs/
