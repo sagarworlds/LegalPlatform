@@ -89,7 +89,7 @@ if (app.Environment.IsDevelopment())
 
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
-    await dbContext.Database.MigrateAsync();
+    await dbContext.Database.EnsureCreatedAsync();
 }
 
 app.MapAuditEndpoints();

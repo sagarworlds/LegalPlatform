@@ -43,55 +43,84 @@ var auditDb = postgres.AddDatabase("audit-db", "audit_db");
 // Service Declarations
 var identityService = builder.AddProject<Projects.IdentityService>("identityservice")
     .WithReference(identityDb)
+    .WaitFor(identityDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var userService = builder.AddProject<Projects.UserService>("userservice")
     .WithReference(userDb)
+    .WaitFor(userDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var organizationService = builder.AddProject<Projects.OrganizationService>("organizationservice")
     .WithReference(organizationDb)
+    .WaitFor(organizationDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var documentService = builder.AddProject<Projects.DocumentService>("documentservice")
     .WithReference(documentDb)
+    .WaitFor(documentDb)
     .WithReference(minio.GetEndpoint("api"))
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var caseService = builder.AddProject<Projects.CaseService>("caseservice")
     .WithReference(caseDb)
+    .WaitFor(caseDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var workflowService = builder.AddProject<Projects.WorkflowService>("workflowservice")
     .WithReference(workflowDb)
+    .WaitFor(workflowDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var notificationService = builder.AddProject<Projects.NotificationService>("notificationservice")
     .WithReference(notificationDb)
+    .WaitFor(notificationDb)
     .WithReference(mailpit.GetEndpoint("smtp"))
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var searchService = builder.AddProject<Projects.SearchService>("searchservice")
     .WithReference(elasticsearch.GetEndpoint("http"))
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var reportingService = builder.AddProject<Projects.ReportingService>("reportingservice")
     .WithReference(reportingDb)
+    .WaitFor(reportingDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 var auditService = builder.AddProject<Projects.AuditService>("auditservice")
     .WithReference(auditDb)
+    .WaitFor(auditDb)
     .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WaitFor(redis)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
 
 // Gateway (YARP Reverse Proxy)
 builder.AddProject<Projects.Gateway>("gateway")
