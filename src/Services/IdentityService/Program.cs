@@ -16,7 +16,14 @@ builder.AddServiceDefaults();
 // PostgreSQL Database integration via Aspire resource connection
 builder.AddNpgsqlDbContext<IdentityDbContext>("identity-db");
 
-builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequiredLength = 6;
+})
     .AddEntityFrameworkStores<IdentityDbContext>()
     .AddDefaultTokenProviders();
 
