@@ -1,4 +1,5 @@
 using System.Text;
+using Auditing;
 using Contracts;
 using DocumentService.Domain;
 using DocumentService.Endpoints;
@@ -20,7 +21,13 @@ public class DocumentEndpointsTests : IDisposable
     private readonly SqliteDatabase<DocumentDbContext> _database = new();
     private readonly FakeDocumentStorage _storage = new();
     private readonly FakeEventBus _bus = new();
+    private readonly IAuditPublisher _audit;
     private readonly UserContext _user = TestUsers.Create(TenantA, Roles.Attorney);
+
+    public DocumentEndpointsTests()
+    {
+        _audit = TestAudit.For(_bus, "DocumentService");
+    }
 
     public void Dispose() => _database.Dispose();
 
@@ -28,7 +35,7 @@ public class DocumentEndpointsTests : IDisposable
     {
         using var db = _database.NewContext();
         var result = await DocumentEndpoints.UploadDocumentAsync(
-            _user, TestHttp.NewContext(), TestHttp.File(fileName, content), title, "Contract", db, _storage, _bus, NullLoggerFactory.Instance);
+            _user, TestHttp.NewContext(), TestHttp.File(fileName, content), title, "Contract", db, _storage, _audit, NullLoggerFactory.Instance);
         return await TestHttp.ExecuteAsync(result);
     }
 
@@ -36,7 +43,7 @@ public class DocumentEndpointsTests : IDisposable
     {
         using var db = _database.NewContext();
         var result = await DocumentEndpoints.UploadNewVersionAsync(
-            documentId, user, TestHttp.NewContext(), TestHttp.File("contract.pdf", content), "revised", db, _storage, _bus, NullLoggerFactory.Instance);
+            documentId, user, TestHttp.NewContext(), TestHttp.File("contract.pdf", content), "revised", db, _storage, _audit, NullLoggerFactory.Instance);
         return await TestHttp.ExecuteAsync(result);
     }
 
@@ -111,7 +118,7 @@ public class DocumentEndpointsTests : IDisposable
         await UploadVersionAsync(_user, documentId, "version two");
 
         using var db = _database.NewContext();
-        var result = await DocumentEndpoints.DownloadCurrentVersionAsync(documentId, _user, TestHttp.NewContext(), db, _storage, _bus);
+        var result = await DocumentEndpoints.DownloadCurrentVersionAsync(documentId, _user, TestHttp.NewContext(), db, _storage, _audit);
         var response = await TestHttp.ExecuteAsync(result);
 
         response.StatusCode.Should().Be(200);
@@ -138,7 +145,7 @@ public class DocumentEndpointsTests : IDisposable
 
         // A null title violates the NOT NULL column, so SaveChanges fails after the blob has been written.
         var upload = () => DocumentEndpoints.UploadDocumentAsync(
-            _user, TestHttp.NewContext(), TestHttp.File("contract.pdf", "x"), title: null!, "Contract", db, _storage, _bus, NullLoggerFactory.Instance);
+            _user, TestHttp.NewContext(), TestHttp.File("contract.pdf", "x"), title: null!, "Contract", db, _storage, _audit, NullLoggerFactory.Instance);
 
         await upload.Should().ThrowAsync<DbUpdateException>();
         _storage.Blobs.Should().BeEmpty("the blob would otherwise be orphaned");
@@ -152,7 +159,7 @@ public class DocumentEndpointsTests : IDisposable
         using var db = _database.NewContext();
 
         var upload = () => DocumentEndpoints.UploadDocumentAsync(
-            _user, TestHttp.NewContext(), TestHttp.File("contract.pdf", "x"), title: null!, "Contract", db, _storage, _bus, NullLoggerFactory.Instance);
+            _user, TestHttp.NewContext(), TestHttp.File("contract.pdf", "x"), title: null!, "Contract", db, _storage, _audit, NullLoggerFactory.Instance);
 
         await upload.Should().ThrowAsync<DbUpdateException>();
     }

@@ -1,4 +1,5 @@
 using AuditService.Domain;
+using Auditing;
 using AuditService.Endpoints;
 using AuditService.Infrastructure;
 using Contracts;
@@ -16,9 +17,12 @@ public class AuditEndpointsTests : IDisposable
 
     private readonly SqliteDatabase<AuditDbContext> _database = new();
     private readonly FakeEventBus _bus = new();
+    private readonly IAuditPublisher _audit;
 
     public AuditEndpointsTests()
     {
+        _audit = TestAudit.For(_bus, "AuditService");
+
         // Failed logins and registrations are recorded with no tenant (Guid.Empty): they must not leak to tenant-scoped readers.
         using var db = _database.NewContext();
         db.AuditLogs.AddRange(
@@ -80,7 +84,7 @@ public class AuditEndpointsTests : IDisposable
 
         using var db = _database.NewContext();
         var result = await AuditEndpoints.ExportAuditLogsAsync(
-            new AuditEndpoints.ExportRequest("csv", null, null, null, null), user, TestHttp.NewContext(), db, _bus);
+            new AuditEndpoints.ExportRequest("csv", null, null, null, null), user, TestHttp.NewContext(), db, _audit);
         var response = await TestHttp.ExecuteAsync(result);
 
         response.StatusCode.Should().Be(200);
@@ -94,7 +98,7 @@ public class AuditEndpointsTests : IDisposable
         using var db = _database.NewContext();
         var result = await AuditEndpoints.ExportAuditLogsAsync(
             new AuditEndpoints.ExportRequest("csv", null, null, null, null),
-            TestUsers.Create(tenantId: null, Roles.ComplianceOfficer), TestHttp.NewContext(), db, _bus);
+            TestUsers.Create(tenantId: null, Roles.ComplianceOfficer), TestHttp.NewContext(), db, _audit);
 
         (await TestHttp.ExecuteAsync(result)).StatusCode.Should().Be(403);
         _bus.Published.Should().BeEmpty();

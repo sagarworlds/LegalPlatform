@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using IdentityService.Domain;
 using IdentityService.Infrastructure;
 using IdentityService.Models;
+using Auditing;
 using EventBus.Abstractions;
 using Contracts;
 using ServiceDefaults.Security;
@@ -38,14 +39,15 @@ public static class IdentityEndpoints
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         IEventBus eventBus,
+        IAuditPublisher audit,
         ILoggerFactory loggerFactory)
     {
         if (request.OrganizationId.HasValue && !CanPlaceUserInOrganization(httpContext.User, request.OrganizationId.Value))
         {
-            await IdentityAudit.PublishAsync(eventBus, httpContext, Guid.Empty, Guid.Empty,
-                entityId: "RegistrationDenied", action: "Register", oldValues: string.Empty,
-                newValues: $"Email: {request.Email}, Reason: caller may not place users in organization {request.OrganizationId}",
-                success: false);
+            await audit.PublishAsync(httpContext, new AuditEntry(Guid.Empty, Guid.Empty, "User",
+                EntityId: "RegistrationDenied", Action: "Register",
+                NewValues: $"Email: {request.Email}, Reason: caller may not place users in organization {request.OrganizationId}",
+                Success: false));
 
             return Results.Problem(
                 statusCode: StatusCodes.Status403Forbidden,
@@ -56,10 +58,10 @@ public static class IdentityEndpoints
         var userExists = await userManager.FindByEmailAsync(request.Email);
         if (userExists != null)
         {
-            await IdentityAudit.PublishAsync(eventBus, httpContext, request.OrganizationId ?? Guid.Empty, Guid.Empty,
-                entityId: "RegistrationFailed", action: "Register", oldValues: string.Empty,
-                newValues: $"Email: {request.Email}, Reason: User already exists",
-                success: false);
+            await audit.PublishAsync(httpContext, new AuditEntry(request.OrganizationId ?? Guid.Empty, Guid.Empty, "User",
+                EntityId: "RegistrationFailed", Action: "Register",
+                NewValues: $"Email: {request.Email}, Reason: User already exists",
+                Success: false));
 
             return Results.BadRequest(new { Message = "User already exists with this email." });
         }
@@ -105,10 +107,9 @@ public static class IdentityEndpoints
             OrganizationId = user.OrganizationId
         });
 
-        await IdentityAudit.PublishAsync(eventBus, httpContext, user.OrganizationId ?? Guid.Empty, user.Id,
-            entityId: user.Id.ToString(), action: "Register", oldValues: string.Empty,
-            newValues: $"Email: {user.Email}",
-            success: true);
+        await audit.PublishAsync(httpContext, new AuditEntry(user.OrganizationId ?? Guid.Empty, user.Id, "User",
+            EntityId: user.Id.ToString(), Action: "Register",
+            NewValues: $"Email: {user.Email}"));
 
         return Results.Ok(new { Message = "User registered successfully." });
     }
@@ -129,15 +130,15 @@ public static class IdentityEndpoints
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user == null || !await userManager.CheckPasswordAsync(user, request.Password))
         {
-            await IdentityAudit.PublishAsync(eventBus, httpContext, Guid.Empty, Guid.Empty,
-                entityId: "LoginFailed", action: "Login", oldValues: string.Empty,
-                newValues: $"Email: {request.Email}",
-                success: false);
+            await audit.PublishAsync(httpContext, new AuditEntry(Guid.Empty, Guid.Empty, "User",
+                EntityId: "LoginFailed", Action: "Login",
+                NewValues: $"Email: {request.Email}",
+                Success: false));
 
             return Results.Unauthorized();
         }
@@ -150,10 +151,9 @@ public static class IdentityEndpoints
         user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
         await userManager.UpdateAsync(user);
 
-        await IdentityAudit.PublishAsync(eventBus, httpContext, user.OrganizationId ?? Guid.Empty, user.Id,
-            entityId: user.Id.ToString(), action: "Login", oldValues: string.Empty,
-            newValues: $"Email: {user.Email}",
-            success: true);
+        await audit.PublishAsync(httpContext, new AuditEntry(user.OrganizationId ?? Guid.Empty, user.Id, "User",
+            EntityId: user.Id.ToString(), Action: "Login",
+            NewValues: $"Email: {user.Email}"));
 
         return Results.Ok(new AuthResponse(accessToken, refreshToken, DateTime.UtcNow.AddMinutes(60)));
     }
@@ -163,7 +163,7 @@ public static class IdentityEndpoints
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         try
         {
@@ -187,10 +187,9 @@ public static class IdentityEndpoints
             user.RefreshToken = newRefreshToken;
             await userManager.UpdateAsync(user);
 
-            await IdentityAudit.PublishAsync(eventBus, httpContext, user.OrganizationId ?? Guid.Empty, user.Id,
-                entityId: user.Id.ToString(), action: "RefreshToken", oldValues: string.Empty,
-                newValues: $"Email: {user.Email}",
-                success: true);
+            await audit.PublishAsync(httpContext, new AuditEntry(user.OrganizationId ?? Guid.Empty, user.Id, "User",
+                EntityId: user.Id.ToString(), Action: "RefreshToken",
+                NewValues: $"Email: {user.Email}"));
 
             return Results.Ok(new AuthResponse(newAccessToken, newRefreshToken, DateTime.UtcNow.AddMinutes(60)));
         }

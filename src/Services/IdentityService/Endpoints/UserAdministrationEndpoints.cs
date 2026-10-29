@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using IdentityService.Domain;
 using IdentityService.Infrastructure;
 using IdentityService.Models;
-using EventBus.Abstractions;
+using Auditing;
 using ServiceDefaults.Security;
 
 namespace IdentityService.Endpoints;
@@ -39,7 +39,7 @@ public static class UserAdministrationEndpoints
         UserContext caller,
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         var requested = (request.Roles ?? []).Distinct(StringComparer.Ordinal).ToList();
         if (requested.Count == 0)
@@ -94,10 +94,9 @@ public static class UserAdministrationEndpoints
             }
         }
 
-        await IdentityAudit.PublishAsync(eventBus, httpContext, caller.TenantId, caller.UserId,
-            entityId: user.Id.ToString(), action: "AssignRoles",
-            oldValues: string.Join(",", current), newValues: string.Join(",", requested),
-            success: true);
+        await audit.PublishAsync(httpContext, AuditEntry.By(caller,
+            entityType: "User", entityId: user.Id.ToString(), action: "AssignRoles",
+            newValues: string.Join(",", requested), oldValues: string.Join(",", current)));
 
         return Results.Ok(new { UserId = user.Id, Roles = requested });
     }
@@ -108,7 +107,7 @@ public static class UserAdministrationEndpoints
         UserContext caller,
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         if (request.OrganizationId == Guid.Empty)
         {
@@ -130,10 +129,9 @@ public static class UserAdministrationEndpoints
             return Results.BadRequest(result.Errors);
         }
 
-        await IdentityAudit.PublishAsync(eventBus, httpContext, caller.TenantId, caller.UserId,
-            entityId: user.Id.ToString(), action: "AssignOrganization",
-            oldValues: previous?.ToString() ?? string.Empty, newValues: request.OrganizationId.ToString(),
-            success: true);
+        await audit.PublishAsync(httpContext, AuditEntry.By(caller,
+            entityType: "User", entityId: user.Id.ToString(), action: "AssignOrganization",
+            newValues: request.OrganizationId.ToString(), oldValues: previous?.ToString() ?? string.Empty));
 
         return Results.Ok(new { UserId = user.Id, OrganizationId = request.OrganizationId });
     }

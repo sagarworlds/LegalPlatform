@@ -1,3 +1,4 @@
+using Auditing;
 using Contracts;
 using FluentAssertions;
 using IdentityService.Domain;
@@ -72,9 +73,11 @@ public class IdentityRegistrationTests : IDisposable
 
     private readonly IdentityHarness _identity = new();
     private readonly FakeEventBus _bus = new();
+    private readonly IAuditPublisher _audit;
 
     public IdentityRegistrationTests()
     {
+        _audit = TestAudit.For(_bus, "IdentityService");
         _identity.SeedAsync().GetAwaiter().GetResult();
     }
 
@@ -85,7 +88,7 @@ public class IdentityRegistrationTests : IDisposable
         {
             var httpContext = TestHttp.NewContext(caller is null ? null : TestUsers.ToPrincipal(caller));
             var result = await IdentityEndpoints.RegisterAsync(
-                request, httpContext, services.GetRequiredService<UserManager<ApplicationUser>>(), _bus, NullLoggerFactory.Instance);
+                request, httpContext, services.GetRequiredService<UserManager<ApplicationUser>>(), _bus, _audit, NullLoggerFactory.Instance);
             return await TestHttp.ExecuteAsync(result);
         });
 
@@ -171,10 +174,12 @@ public class IdentityAdministrationTests : IDisposable
 {
     private readonly IdentityHarness _identity = new();
     private readonly FakeEventBus _bus = new();
+    private readonly IAuditPublisher _audit;
     private readonly UserContext _sysAdmin = TestUsers.Create(Guid.NewGuid(), Roles.SystemAdmin);
 
     public IdentityAdministrationTests()
     {
+        _audit = TestAudit.For(_bus, "IdentityService");
         _identity.SeedAsync().GetAwaiter().GetResult();
     }
 
@@ -200,7 +205,7 @@ public class IdentityAdministrationTests : IDisposable
         _identity.WithScopeAsync(async s =>
         {
             var result = await UserAdministrationEndpoints.AssignRolesAsync(
-                userId, new AssignRolesRequest(roles), caller, TestHttp.NewContext(), s.GetRequiredService<UserManager<ApplicationUser>>(), _bus);
+                userId, new AssignRolesRequest(roles), caller, TestHttp.NewContext(), s.GetRequiredService<UserManager<ApplicationUser>>(), _audit);
             return await TestHttp.ExecuteAsync(result);
         });
 
@@ -265,7 +270,7 @@ public class IdentityAdministrationTests : IDisposable
         var response = await _identity.WithScopeAsync(async s => await TestHttp.ExecuteAsync(
             await UserAdministrationEndpoints.AssignOrganizationAsync(
                 user.Id, new AssignOrganizationRequest(organizationId), _sysAdmin, TestHttp.NewContext(),
-                s.GetRequiredService<UserManager<ApplicationUser>>(), _bus)));
+                s.GetRequiredService<UserManager<ApplicationUser>>(), _audit)));
 
         response.StatusCode.Should().Be(200, response.Body);
         (await _identity.WithScopeAsync(s => s.GetRequiredService<UserManager<ApplicationUser>>().FindByIdAsync(user.Id.ToString())))!
@@ -280,7 +285,7 @@ public class IdentityAdministrationTests : IDisposable
         var response = await _identity.WithScopeAsync(async s => await TestHttp.ExecuteAsync(
             await UserAdministrationEndpoints.AssignOrganizationAsync(
                 user.Id, new AssignOrganizationRequest(Guid.Empty), _sysAdmin, TestHttp.NewContext(),
-                s.GetRequiredService<UserManager<ApplicationUser>>(), _bus)));
+                s.GetRequiredService<UserManager<ApplicationUser>>(), _audit)));
 
         response.StatusCode.Should().Be(400);
     }

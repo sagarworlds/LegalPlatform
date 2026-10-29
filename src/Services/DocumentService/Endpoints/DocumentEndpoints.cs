@@ -13,8 +13,7 @@ using DocumentService.Domain;
 using DocumentService.Infrastructure;
 using DocumentService.Models;
 using DocumentService.Storage;
-using EventBus.Abstractions;
-using Contracts;
+using Auditing;
 using ServiceDefaults.Security;
 
 namespace DocumentService.Endpoints;
@@ -46,7 +45,7 @@ public static class DocumentEndpoints
         [FromForm] string category,
         DocumentDbContext dbContext,
         IDocumentStorage storage,
-        IEventBus eventBus,
+        IAuditPublisher audit,
         ILoggerFactory loggerFactory)
     {
         var fileName = SafeFileName(file.FileName);
@@ -66,22 +65,9 @@ public static class DocumentEndpoints
         dbContext.Documents.Add(document);
         await SaveOrDiscardBlobAsync(dbContext, storage, storagePath, loggerFactory);
 
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "DocumentService",
-            EntityType = "Document",
-            EntityId = document.Id.ToString(),
-            Action = "Upload",
-            OldValues = string.Empty,
-            NewValues = $"Title: {document.Title}, File: {version.FileName}",
-            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "Document", entityId: document.Id.ToString(), action: "Upload",
+            newValues: $"Title: {document.Title}, File: {version.FileName}"));
 
         return Results.Ok(new { DocumentId = document.Id, VersionId = version.VersionId, Message = "Document uploaded successfully." });
     }
@@ -94,7 +80,7 @@ public static class DocumentEndpoints
         [FromForm] string changeComment,
         DocumentDbContext dbContext,
         IDocumentStorage storage,
-        IEventBus eventBus,
+        IAuditPublisher audit,
         ILoggerFactory loggerFactory)
     {
         var document = await dbContext.Documents
@@ -121,22 +107,9 @@ public static class DocumentEndpoints
 
         await SaveOrDiscardBlobAsync(dbContext, storage, storagePath, loggerFactory);
 
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "DocumentService",
-            EntityType = "DocumentVersion",
-            EntityId = version.VersionId.ToString(),
-            Action = "UploadVersion",
-            OldValues = string.Empty,
-            NewValues = $"DocumentId: {document.Id}, Version: {version.VersionNumber}, File: {version.FileName}",
-            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "DocumentVersion", entityId: version.VersionId.ToString(), action: "UploadVersion",
+            newValues: $"DocumentId: {document.Id}, Version: {version.VersionNumber}, File: {version.FileName}"));
 
         return Results.Ok(new { DocumentId = document.Id, VersionId = version.VersionId, Message = "New document version uploaded successfully." });
     }
@@ -161,7 +134,7 @@ public static class DocumentEndpoints
         HttpContext httpContext,
         DocumentDbContext dbContext,
         IDocumentStorage storage,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         var version = await dbContext.DocumentVersions
             .AsNoTracking()
@@ -176,22 +149,9 @@ public static class DocumentEndpoints
 
         var content = await storage.OpenReadAsync(version.StoragePath);
 
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "DocumentService",
-            EntityType = "Document",
-            EntityId = id.ToString(),
-            Action = "Download",
-            OldValues = string.Empty,
-            NewValues = $"FileName: {version.FileName}",
-            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "Document", entityId: id.ToString(), action: "Download",
+            newValues: $"FileName: {version.FileName}"));
 
         return Results.File(content, version.MIMEType, version.FileName);
     }
@@ -203,7 +163,7 @@ public static class DocumentEndpoints
         HttpContext httpContext,
         DocumentDbContext dbContext,
         IDocumentStorage storage,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         var version = await dbContext.DocumentVersions
             .AsNoTracking()
@@ -216,22 +176,9 @@ public static class DocumentEndpoints
 
         var content = await storage.OpenReadAsync(version.StoragePath);
 
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "DocumentService",
-            EntityType = "DocumentVersion",
-            EntityId = version.VersionId.ToString(),
-            Action = "DownloadVersion",
-            OldValues = string.Empty,
-            NewValues = $"DocumentId: {id}, Version: {version.VersionNumber}, FileName: {version.FileName}",
-            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "DocumentVersion", entityId: version.VersionId.ToString(), action: "DownloadVersion",
+            newValues: $"DocumentId: {id}, Version: {version.VersionNumber}, FileName: {version.FileName}"));
 
         return Results.File(content, version.MIMEType, version.FileName);
     }

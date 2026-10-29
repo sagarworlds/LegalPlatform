@@ -19,12 +19,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\Auditing\Auditing.csproj" />
     <ProjectReference Include="..\..\src\ServiceDefaults\ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Services\AuditService\AuditService.csproj" />
     <ProjectReference Include="..\..\src\Services\CaseService\CaseService.csproj" />
     <ProjectReference Include="..\..\src\Services\DocumentService\DocumentService.csproj" />
     <ProjectReference Include="..\..\src\Services\IdentityService\IdentityService.csproj" />
+    <ProjectReference Include="..\..\src\Services\NotificationService\NotificationService.csproj" />
     <ProjectReference Include="..\..\src\Services\OrganizationService\OrganizationService.csproj" />
+    <ProjectReference Include="..\..\src\Services\ReportingService\ReportingService.csproj" />
+    <ProjectReference Include="..\..\src\Services\SearchService\SearchService.csproj" />
     <ProjectReference Include="..\..\src\Services\UserService\UserService.csproj" />
     <ProjectReference Include="..\..\src\Services\WorkflowService\WorkflowService.csproj" />
   </ItemGroup>

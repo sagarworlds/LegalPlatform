@@ -8,8 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using CaseService.Domain;
 using CaseService.Infrastructure;
 using CaseService.Models;
-using EventBus.Abstractions;
-using Contracts;
+using Auditing;
 using ServiceDefaults.Security;
 
 namespace CaseService.Endpoints;
@@ -36,7 +35,7 @@ public static class CaseEndpoints
         UserContext user,
         HttpContext httpContext,
         CaseDbContext dbContext,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         var exists = await dbContext.Cases.AnyAsync(c => c.CaseNumber == request.CaseNumber && c.TenantId == user.TenantId);
         if (exists)
@@ -67,22 +66,9 @@ public static class CaseEndpoints
         dbContext.Cases.Add(kase);
         await dbContext.SaveChangesAsync();
 
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "CaseService",
-            EntityType = "Case",
-            EntityId = kase.Id.ToString(),
-            Action = "Create",
-            OldValues = string.Empty,
-            NewValues = $"Title: {kase.Title}, CaseNumber: {kase.CaseNumber}",
-            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "Case", entityId: kase.Id.ToString(), action: "Create",
+            newValues: $"Title: {kase.Title}, CaseNumber: {kase.CaseNumber}"));
 
         return Results.Created($"/api/v1/cases/{kase.Id}", CaseDetailResponse.From(kase));
     }
@@ -126,7 +112,7 @@ public static class CaseEndpoints
         UserContext user,
         HttpContext httpContext,
         CaseDbContext dbContext,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         var caseExists = await dbContext.Cases.AnyAsync(c => c.Id == id && c.TenantId == user.TenantId);
         if (!caseExists)
@@ -145,22 +131,9 @@ public static class CaseEndpoints
         dbContext.CaseTimelines.Add(timeline);
         await dbContext.SaveChangesAsync();
 
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "CaseService",
-            EntityType = "CaseTimeline",
-            EntityId = timeline.Id.ToString(),
-            Action = "AddNote",
-            OldValues = string.Empty,
-            NewValues = $"CaseId: {id}, Note: {request.EventDescription}",
-            IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "CaseTimeline", entityId: timeline.Id.ToString(), action: "AddNote",
+            newValues: $"CaseId: {id}, Note: {request.EventDescription}"));
 
         return Results.Ok(TimelineEntryResponse.From(timeline));
     }

@@ -8,6 +8,7 @@ using IdentityService.Domain;
 using IdentityService.Endpoints;
 using IdentityService.Infrastructure;
 using EventBus;
+using Auditing;
 using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +37,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IdentityDataSeeder>();
 
 builder.Services.AddEventBus(builder.Configuration);
+builder.Services.AddAuditPublisher("IdentityService");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

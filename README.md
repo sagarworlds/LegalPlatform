@@ -65,6 +65,8 @@ An enterprise-grade Legal Workflow and Document Management platform architecture
 - **Administration** (`SystemAdmin` only): `PUT /api/v1/identity/users/{id}/roles` replaces a user's roles; `PUT /api/v1/identity/users/{id}/organization` assigns an organization. Tokens already issued keep their old roles until they expire.
 - **Workflows**: Templates are private to a tenant and only `OrganizationAdmin`/`SystemAdmin` can create them. A step can only be approved or rejected by a user holding the role the step is assigned to.
 - **Organizations & users**: `POST /api/v1/organizations` is `SystemAdmin` only; members read their own organization. A user can read and update their own profile; administrators can manage profiles in their organization.
+- **JWT configuration**: `JwtSettings:Secret`, `Issuer` and `Audience` are required by every service and there are no built-in defaults; a missing value or a secret under 32 characters stops the service at startup. `ExpiryInMinutes` is optional (default 60). The committed `appsettings.json` value is a local-development key only; override it (for example with the `JwtSettings__Secret` environment variable) in any shared environment.
+- **Audit events**: services record their audit trail through `IAuditPublisher` (`src/BuildingBlocks/Auditing`), which adds the service name and request details (IP, user agent, correlation id) to every event.
 - **Development admin**: In the `Development` environment IdentityService seeds `admin@legal.com` / `devpassword123` as a `SystemAdmin` (see `src/Services/IdentityService/appsettings.Development.json`). Change or remove it for any shared environment.
 
 ---
@@ -78,6 +80,7 @@ An enterprise-grade Legal Workflow and Document Management platform architecture
  │    ├── ServiceDefaults/       # Shared Resilience, Diagnostics, Exception Handler
  │    ├── Gateway/               # YARP Proxy and rate limiting configuration
  │    ├── BuildingBlocks/
+ │    │    ├── Auditing/         # IAuditPublisher: one place that builds audit events
  │    │    ├── Contracts/        # Integration Event definitions
  │    │    ├── EventBus/         # MassTransit RabbitMQ wrappers
  │    │    └── SharedKernel/     # AggregateRoot, Entity, and ValueObject patterns

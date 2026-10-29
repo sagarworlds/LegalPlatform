@@ -1,3 +1,4 @@
+using Auditing;
 using CaseService.Endpoints;
 using CaseService.Infrastructure;
 using Contracts;
@@ -15,6 +16,12 @@ public class CaseEndpointsTests : IDisposable
 
     private readonly SqliteDatabase<CaseDbContext> _database = new();
     private readonly FakeEventBus _bus = new();
+    private readonly IAuditPublisher _audit;
+
+    public CaseEndpointsTests()
+    {
+        _audit = TestAudit.For(_bus, "CaseService");
+    }
 
     public void Dispose() => _database.Dispose();
 
@@ -23,7 +30,7 @@ public class CaseEndpointsTests : IDisposable
         using var db = _database.NewContext();
         var result = await CaseEndpoints.CreateCaseAsync(
             new CaseEndpoints.CreateCaseRequest("Title", "Description", caseNumber, Guid.NewGuid(), Guid.NewGuid(), null),
-            TestUsers.Create(tenant), TestHttp.NewContext(), db, _bus);
+            TestUsers.Create(tenant), TestHttp.NewContext(), db, _audit);
         return await TestHttp.ExecuteAsync(result);
     }
 
@@ -63,7 +70,7 @@ public class CaseEndpointsTests : IDisposable
         using (var db = _database.NewContext())
         {
             var result = await CaseEndpoints.AddTimelineNoteAsync(
-                id, new CaseEndpoints.AddNoteRequest("Filed motion"), TestUsers.Create(TenantA), TestHttp.NewContext(), db, _bus);
+                id, new CaseEndpoints.AddNoteRequest("Filed motion"), TestUsers.Create(TenantA), TestHttp.NewContext(), db, _audit);
             var note = await TestHttp.ExecuteAsync(result);
 
             note.StatusCode.Should().Be(200);
@@ -104,7 +111,7 @@ public class CaseEndpointsTests : IDisposable
 
         using var db = _database.NewContext();
         var note = await CaseEndpoints.AddTimelineNoteAsync(
-            id, new CaseEndpoints.AddNoteRequest("x"), TestUsers.Create(TenantB), TestHttp.NewContext(), db, _bus);
+            id, new CaseEndpoints.AddNoteRequest("x"), TestUsers.Create(TenantB), TestHttp.NewContext(), db, _audit);
         (await TestHttp.ExecuteAsync(note)).StatusCode.Should().Be(404);
     }
 

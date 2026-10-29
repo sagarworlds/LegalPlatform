@@ -9,8 +9,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using AuditService.Infrastructure;
 using AuditService.Domain;
-using EventBus.Abstractions;
-using Contracts;
+using Auditing;
 using ServiceDefaults.Security;
 
 namespace AuditService.Endpoints;
@@ -64,7 +63,7 @@ public static class AuditEndpoints
         UserContext user,
         HttpContext httpContext,
         AuditDbContext dbContext,
-        IEventBus eventBus)
+        IAuditPublisher audit)
     {
         if (!TryScopeToCaller(dbContext.AuditLogs, user, out var scoped, out var denied))
         {
@@ -75,23 +74,9 @@ public static class AuditEndpoints
 
         var logs = await query.OrderByDescending(a => a.Timestamp).ToListAsync();
 
-        var connection = httpContext.Connection;
-        await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
-        {
-            TenantId = user.TenantId,
-            UserId = user.UserId,
-            ServiceName = "AuditService",
-            EntityType = "AuditLog",
-            EntityId = "All",
-            Action = "Export",
-            OldValues = string.Empty,
-            NewValues = $"Format: {request.Format}, Count: {logs.Count}",
-            IPAddress = connection.RemoteIpAddress?.ToString() ?? "Unknown",
-            UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
-            CorrelationId = httpContext.TraceIdentifier,
-            TraceId = httpContext.TraceIdentifier,
-            Outcome = "Success"
-        });
+        await audit.PublishAsync(httpContext, AuditEntry.By(user,
+            entityType: "AuditLog", entityId: "All", action: "Export",
+            newValues: $"Format: {request.Format}, Count: {logs.Count}"));
 
         var exportContent = $"Audit Log Export ({request.Format})\nGenerated: {DateTime.UtcNow:O}\nRecord Count: {logs.Count}\n";
         return Results.Text(exportContent);
