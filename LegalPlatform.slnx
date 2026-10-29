@@ -5,6 +5,7 @@
     <Project Path="src/ServiceDefaults/ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Auditing/Auditing.csproj" />
     <Project Path="src/BuildingBlocks/Contracts/Contracts.csproj" />
     <Project Path="src/BuildingBlocks/EventBus/EventBus.csproj" />
     <Project Path="src/BuildingBlocks/SharedKernel/SharedKernel.csproj" />
