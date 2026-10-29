@@ -1,18 +1,17 @@
 using System;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Amazon.S3;
 using DocumentService.Endpoints;
 using DocumentService.Infrastructure;
 using DocumentService.Storage;
 using EventBus;
+using Auditing;
 using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,29 +20,8 @@ builder.AddServiceDefaults();
 
 builder.AddNpgsqlDbContext<DocumentDbContext>("document-db");
 
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["Secret"] ?? "super_secret_key_which_is_at_least_32_characters_long_for_security";
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"] ?? "LegalPlatform.Identity",
-        ValidAudience = jwtSettings["Audience"] ?? "LegalPlatform.Clients",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-    };
-});
-
-builder.Services.AddPlatformAuthorization();
+// Validates tokens issued by IdentityService with the shared, fail-fast JwtSettings (no built-in fallback key).
+builder.Services.AddPlatformJwtAuthentication(builder.Configuration);
 
 var minioEndpoint = builder.Configuration.GetConnectionString("minio") ?? "http://localhost:9000";
 var s3Config = new AmazonS3Config
@@ -55,6 +33,7 @@ builder.Services.AddSingleton<IAmazonS3>(new AmazonS3Client("minioadmin", "minio
 builder.Services.AddSingleton<IDocumentStorage, S3DocumentStorage>();
 
 builder.Services.AddEventBus(builder.Configuration);
+builder.Services.AddAuditPublisher("DocumentService");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

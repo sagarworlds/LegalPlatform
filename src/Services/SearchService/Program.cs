@@ -1,11 +1,9 @@
 using System;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -19,29 +17,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["Secret"] ?? "super_secret_key_which_is_at_least_32_characters_long_for_security";
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"] ?? "LegalPlatform.Identity",
-        ValidAudience = jwtSettings["Audience"] ?? "LegalPlatform.Clients",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-    };
-});
-
-builder.Services.AddPlatformAuthorization();
+// Validates tokens issued by IdentityService with the shared, fail-fast JwtSettings (no built-in fallback key).
+builder.Services.AddPlatformJwtAuthentication(builder.Configuration);
 
 var elasticUri = builder.Configuration.GetConnectionString("elasticsearch") ?? "http://localhost:9200";
 var settings = new ElasticsearchClientSettings(new Uri(elasticUri))

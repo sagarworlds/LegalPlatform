@@ -1,27 +1,23 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using IdentityService.Domain;
+using ServiceDefaults.Security;
 
 namespace IdentityService.Infrastructure;
 
 public class TokenService : ITokenService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtSettings _settings;
 
-    public TokenService(IConfiguration configuration)
+    public TokenService(JwtSettings settings)
     {
-        _configuration = configuration;
+        _settings = settings;
     }
 
     public string GenerateAccessToken(ApplicationUser user, IList<string> roles)
     {
-        var secretKey = _configuration["JwtSettings:Secret"] ?? "super_secret_key_which_is_at_least_32_characters_long_for_security";
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -41,14 +37,13 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var expiryMinStr = _configuration["JwtSettings:ExpiryInMinutes"] ?? "60";
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(double.Parse(expiryMinStr)),
-            Issuer = _configuration["JwtSettings:Issuer"] ?? "LegalPlatform.Identity",
-            Audience = _configuration["JwtSettings:Audience"] ?? "LegalPlatform.Clients",
-            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature)
+            Expires = DateTime.UtcNow.AddMinutes(_settings.ExpiryInMinutes),
+            Issuer = _settings.Issuer,
+            Audience = _settings.Audience,
+            SigningCredentials = new SigningCredentials(_settings.SigningKey, SecurityAlgorithms.HmacSha256Signature)
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();
@@ -66,23 +61,13 @@ public class TokenService : ITokenService
 
     public System.Security.Claims.ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
     {
-        var secretKey = _configuration["JwtSettings:Secret"] ?? "super_secret_key_which_is_at_least_32_characters_long_for_security";
-        
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = true,
-            ValidateIssuer = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            ValidateLifetime = false, 
-            ValidIssuer = _configuration["JwtSettings:Issuer"] ?? "LegalPlatform.Identity",
-            ValidAudience = _configuration["JwtSettings:Audience"] ?? "LegalPlatform.Clients"
-        };
+        // Lifetime is the only check relaxed: refreshing is exactly the case where the access token has expired.
+        var tokenValidationParameters = _settings.CreateValidationParameters(validateLifetime: false);
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-        
-        if (securityToken is not JwtSecurityToken jwtSecurityToken || 
+
+        if (securityToken is not JwtSecurityToken jwtSecurityToken ||
             !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
         {
             throw new SecurityTokenException("Invalid token algorithm");

@@ -72,7 +72,7 @@ public class SecurityPipelineTests : IAsyncLifetime
             Id = Guid.NewGuid(), UserName = "user@firm.com", Email = "user@firm.com",
             FirstName = "Test", LastName = "User", OrganizationId = organizationId
         };
-        return new TokenService(config).GenerateAccessToken(user, roles);
+        return new TokenService(JwtSettings.FromConfiguration(config)).GenerateAccessToken(user, roles);
     }
 
     private async Task<HttpResponseMessage> GetAsync(string path, string? token)
