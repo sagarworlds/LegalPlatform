@@ -56,7 +56,16 @@ An enterprise-grade Legal Workflow and Document Management platform architecture
 ### 5. Centralized Audit Trail
 - **Immutable DbContext**: Database context rejects all updates/deletes in the application layer, guaranteeing write-once persistence.
 - **Tamper Detection**: Computes a SHA-256 integrity hash of audit fields on insertion.
-- **Forensic Access**: Server-side tenant-filtering checks caller role claims (`SystemAdmin` gets global scope; `ComplianceOfficer` scopes to own tenant). Export actions are themselves audited.
+- **Forensic Access**: Server-side tenant-filtering checks caller role claims (`SystemAdmin` gets global scope; `ComplianceOfficer`, `SecurityAuditor` and `OrganizationAdmin` scope to their own tenant). Export actions are themselves audited.
+
+### 6. Roles, Tenancy & Access Rules
+- **One role list**: `ServiceDefaults.Security.Roles` is the single source of truth (`SystemAdmin`, `OrganizationAdmin`, `ComplianceOfficer`, `SecurityAuditor`, `Attorney`, `Paralegal`, `Client`, `User`). IdentityService seeds all of them; every service authorizes against the same constants.
+- **Tenant required**: Case, Document, Workflow, Notification, Reporting and Search require an `organizationId` claim. A token without one is answered with `403` rather than being treated as a shared "empty" tenant.
+- **Joining an organization**: Registration is open, but placing a user in an organization is not. Only a `SystemAdmin`, or an `OrganizationAdmin` of that organization, may register a user into it (`POST /api/v1/identity/register` with `organizationId`). Everyone else gets an organization-less account until a `SystemAdmin` assigns one.
+- **Administration** (`SystemAdmin` only): `PUT /api/v1/identity/users/{id}/roles` replaces a user's roles; `PUT /api/v1/identity/users/{id}/organization` assigns an organization. Tokens already issued keep their old roles until they expire.
+- **Workflows**: Templates are private to a tenant and only `OrganizationAdmin`/`SystemAdmin` can create them. A step can only be approved or rejected by a user holding the role the step is assigned to.
+- **Organizations & users**: `POST /api/v1/organizations` is `SystemAdmin` only; members read their own organization. A user can read and update their own profile; administrators can manage profiles in their organization.
+- **Development admin**: In the `Development` environment IdentityService seeds `admin@legal.com` / `devpassword123` as a `SystemAdmin` (see `src/Services/IdentityService/appsettings.Development.json`). Change or remove it for any shared environment.
 
 ---
 
@@ -86,6 +95,7 @@ An enterprise-grade Legal Workflow and Document Management platform architecture
  │    └── WebPortal/             # Angular 18 + Tailwind CSS Admin Portal
  └── tests/
       ├── Identity.Tests/        # JWT Authentication unit tests
+      ├── ServiceEndpoints.Tests/# Endpoint tests on in-memory SQLite: persistence, JSON, tenancy, roles
       └── IntegrationTests/      # WebApplicationFactory gateway routing tests
 ```
 
@@ -130,3 +140,5 @@ Run all unit and integration tests:
 ```powershell
 dotnet test
 ```
+
+> **Database schema note:** services create their schema with `EnsureCreated` in Development, which never alters an existing database. If you keep a persistent Postgres volume, drop the databases once after pulling this change (Documents no longer have a `CurrentVersionId` column, workflow templates gained a `TenantId` column, and the case-number unique index is now per tenant). The default Aspire containers are ephemeral, so a normal restart is enough.
