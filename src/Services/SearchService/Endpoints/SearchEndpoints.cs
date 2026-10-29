@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -8,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using SearchService.Domain;
+using ServiceDefaults.Security;
 
 namespace SearchService.Endpoints;
 
@@ -17,17 +17,18 @@ public static class SearchEndpoints
 
     public static IEndpointRouteBuilder MapSearchEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/v1/search", SearchAsync).RequireAuthorization();
+        // TenantMember rejects tokens without an organization claim (403) before any handler runs.
+        endpoints.MapGet("/api/v1/search", SearchAsync).RequireAuthorization(Policies.TenantMember);
         return endpoints;
     }
 
     private static async Task<IResult> SearchAsync(
         string q,
         string? type,
-        HttpContext httpContext,
+        UserContext user,
         ElasticsearchClient esClient)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
+        var tenantId = user.TenantId;
 
         try
         {
@@ -71,16 +72,5 @@ public static class SearchEndpoints
         {
             return Results.Problem($"Search failed due to internal exception: {ex.Message}");
         }
-    }
-
-    private static (Guid UserId, Guid TenantId) GetUserContext(HttpContext httpContext)
-    {
-        var userIdStr = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var tenantIdStr = httpContext.User.FindFirstValue("organizationId") ?? httpContext.User.FindFirstValue("tenant_id");
-
-        var userId = Guid.TryParse(userIdStr, out var u) ? u : Guid.Empty;
-        var tenantId = Guid.TryParse(tenantIdStr, out var t) ? t : Guid.Empty;
-
-        return (userId, tenantId);
     }
 }

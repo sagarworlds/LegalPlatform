@@ -13,6 +13,7 @@ using MassTransit;
 using SearchService.Consumers;
 using SearchService.Endpoints;
 using EventBus;
+using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,7 +41,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddPlatformAuthorization();
 
 var elasticUri = builder.Configuration.GetConnectionString("elasticsearch") ?? "http://localhost:9200";
 var settings = new ElasticsearchClientSettings(new Uri(elasticUri))

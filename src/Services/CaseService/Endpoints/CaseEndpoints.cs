@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -8,8 +7,10 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using CaseService.Domain;
 using CaseService.Infrastructure;
+using CaseService.Models;
 using EventBus.Abstractions;
 using Contracts;
+using ServiceDefaults.Security;
 
 namespace CaseService.Endpoints;
 
@@ -17,7 +18,8 @@ public static class CaseEndpoints
 {
     public static IEndpointRouteBuilder MapCaseEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/v1/cases").RequireAuthorization();
+        // TenantMember rejects tokens without an organization claim (403) before any handler runs.
+        var group = endpoints.MapGroup("/api/v1/cases").RequireAuthorization(Policies.TenantMember);
 
         group.MapPost("/", CreateCaseAsync);
         group.MapGet("/", ListCasesAsync);
@@ -29,15 +31,14 @@ public static class CaseEndpoints
 
     public record CreateCaseRequest(string Title, string Description, string CaseNumber, Guid ClientId, Guid AssignedLawyerId, DateTime? Deadline);
 
-    private static async Task<IResult> CreateCaseAsync(
+    internal static async Task<IResult> CreateCaseAsync(
         CreateCaseRequest request,
+        UserContext user,
         HttpContext httpContext,
         CaseDbContext dbContext,
         IEventBus eventBus)
     {
-        var (userId, tenantId) = GetUserContext(httpContext);
-
-        var exists = await dbContext.Cases.AnyAsync(c => c.CaseNumber == request.CaseNumber && c.TenantId == tenantId);
+        var exists = await dbContext.Cases.AnyAsync(c => c.CaseNumber == request.CaseNumber && c.TenantId == user.TenantId);
         if (exists)
         {
             return Results.BadRequest(new { Message = $"Case number {request.CaseNumber} is already in use." });
@@ -45,7 +46,7 @@ public static class CaseEndpoints
 
         var kase = new Case(
             Guid.NewGuid(),
-            tenantId,
+            user.TenantId,
             request.Title,
             request.Description,
             request.CaseNumber,
@@ -58,7 +59,7 @@ public static class CaseEndpoints
             Guid.NewGuid(),
             kase.Id,
             eventDescription: "Case created and initialized.",
-            createdBy: userId.ToString()
+            createdBy: user.UserId.ToString()
         );
 
         kase.TimelineEntries.Add(timeline);
@@ -66,11 +67,10 @@ public static class CaseEndpoints
         dbContext.Cases.Add(kase);
         await dbContext.SaveChangesAsync();
 
-        var userIdGuid = userId;
         await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
         {
-            TenantId = tenantId,
-            UserId = userIdGuid,
+            TenantId = user.TenantId,
+            UserId = user.UserId,
             ServiceName = "CaseService",
             EntityType = "Case",
             EntityId = kase.Id.ToString(),
@@ -84,77 +84,71 @@ public static class CaseEndpoints
             Outcome = "Success"
         });
 
-        return Results.Created($"/api/v1/cases/{kase.Id}", kase);
+        return Results.Created($"/api/v1/cases/{kase.Id}", CaseDetailResponse.From(kase));
     }
 
-    private static async Task<IResult> ListCasesAsync(
-        HttpContext httpContext,
+    internal static async Task<IResult> ListCasesAsync(
+        UserContext user,
         CaseDbContext dbContext)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
-
         var cases = await dbContext.Cases
-            .Where(c => c.TenantId == tenantId)
+            .AsNoTracking()
+            .Where(c => c.TenantId == user.TenantId)
             .OrderByDescending(c => c.StartDate)
             .ToListAsync();
 
-        return Results.Ok(cases);
+        return Results.Ok(cases.Select(CaseSummaryResponse.From));
     }
 
-    private static async Task<IResult> GetCaseDetailsAsync(
+    internal static async Task<IResult> GetCaseDetailsAsync(
         Guid id,
-        HttpContext httpContext,
+        UserContext user,
         CaseDbContext dbContext)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
-
         var kase = await dbContext.Cases
+            .AsNoTracking()
             .Include(c => c.TimelineEntries)
-            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
+            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == user.TenantId);
 
         if (kase == null)
         {
             return Results.NotFound();
         }
 
-        return Results.Ok(kase);
+        return Results.Ok(CaseDetailResponse.From(kase));
     }
 
     public record AddNoteRequest(string EventDescription);
 
-    private static async Task<IResult> AddTimelineNoteAsync(
+    internal static async Task<IResult> AddTimelineNoteAsync(
         Guid id,
         AddNoteRequest request,
+        UserContext user,
         HttpContext httpContext,
         CaseDbContext dbContext,
         IEventBus eventBus)
     {
-        var (userId, tenantId) = GetUserContext(httpContext);
-
-        var kase = await dbContext.Cases
-            .Include(c => c.TimelineEntries)
-            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
-
-        if (kase == null)
+        var caseExists = await dbContext.Cases.AnyAsync(c => c.Id == id && c.TenantId == user.TenantId);
+        if (!caseExists)
         {
             return Results.NotFound();
         }
 
         var timeline = new CaseTimeline(
             Guid.NewGuid(),
-            kase.Id,
+            id,
             eventDescription: request.EventDescription,
-            createdBy: userId.ToString()
+            createdBy: user.UserId.ToString()
         );
 
-        kase.TimelineEntries.Add(timeline);
+        // Added through its own DbSet so the insert does not depend on loading and mutating the parent's collection.
+        dbContext.CaseTimelines.Add(timeline);
         await dbContext.SaveChangesAsync();
 
-        var userIdGuid = userId;
         await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
         {
-            TenantId = tenantId,
-            UserId = userIdGuid,
+            TenantId = user.TenantId,
+            UserId = user.UserId,
             ServiceName = "CaseService",
             EntityType = "CaseTimeline",
             EntityId = timeline.Id.ToString(),
@@ -168,17 +162,6 @@ public static class CaseEndpoints
             Outcome = "Success"
         });
 
-        return Results.Ok(timeline);
-    }
-
-    private static (Guid UserId, Guid TenantId) GetUserContext(HttpContext httpContext)
-    {
-        var userIdStr = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var tenantIdStr = httpContext.User.FindFirstValue("organizationId") ?? httpContext.User.FindFirstValue("tenant_id");
-
-        var userId = Guid.TryParse(userIdStr, out var u) ? u : Guid.Empty;
-        var tenantId = Guid.TryParse(tenantIdStr, out var t) ? t : Guid.Empty;
-
-        return (userId, tenantId);
+        return Results.Ok(TimelineEntryResponse.From(timeline));
     }
 }

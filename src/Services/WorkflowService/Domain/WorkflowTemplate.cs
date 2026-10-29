@@ -6,6 +6,8 @@ namespace WorkflowService.Domain;
 
 public class WorkflowTemplate : AggregateRoot<Guid>
 {
+    /// <summary>Owning organization. Templates are private to a tenant; they were previously global.</summary>
+    public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
@@ -13,8 +15,9 @@ public class WorkflowTemplate : AggregateRoot<Guid>
 
     public virtual ICollection<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
 
-    public WorkflowTemplate(Guid id, string name, string description) : base(id)
+    public WorkflowTemplate(Guid id, Guid tenantId, string name, string description) : base(id)
     {
+        TenantId = tenantId;
         Name = name;
         Description = description;
         IsActive = true;

@@ -14,6 +14,7 @@ using NotificationService.Endpoints;
 using NotificationService.Infrastructure;
 using NotificationService.Providers;
 using EventBus;
+using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,7 +44,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddPlatformAuthorization();
 
 builder.Services.AddScoped<INotificationProvider, EmailNotificationProvider>();
 builder.Services.AddScoped<INotificationProvider, SlackNotificationProvider>();

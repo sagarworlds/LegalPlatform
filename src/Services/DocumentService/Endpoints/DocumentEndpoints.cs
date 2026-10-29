@@ -1,29 +1,30 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Amazon.S3;
-using Amazon.S3.Model;
+using Microsoft.Extensions.Logging;
 using DocumentService.Domain;
 using DocumentService.Infrastructure;
+using DocumentService.Models;
+using DocumentService.Storage;
 using EventBus.Abstractions;
 using Contracts;
+using ServiceDefaults.Security;
 
 namespace DocumentService.Endpoints;
 
 public static class DocumentEndpoints
 {
-    private const string BucketName = "legal-documents";
-
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/v1/documents").RequireAuthorization();
+        // TenantMember rejects tokens without an organization claim (403) before any handler runs.
+        var group = endpoints.MapGroup("/api/v1/documents").RequireAuthorization(Policies.TenantMember);
 
         group.MapPost("/", UploadDocumentAsync).DisableAntiforgery();
         group.MapPost("/{id:guid}/versions", UploadNewVersionAsync).DisableAntiforgery();
@@ -35,59 +36,40 @@ public static class DocumentEndpoints
         return endpoints;
     }
 
-    private static async Task<IResult> UploadDocumentAsync(
+    // title/category/changeComment are bound from the multipart body ([FromForm]). Without the attribute, minimal APIs
+    // read plain string parameters from the query string, so the portal's multipart upload was rejected with 400.
+    internal static async Task<IResult> UploadDocumentAsync(
+        UserContext user,
         HttpContext httpContext,
         IFormFile file,
-        string title,
-        string category,
+        [FromForm] string title,
+        [FromForm] string category,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client,
-        IEventBus eventBus)
+        IDocumentStorage storage,
+        IEventBus eventBus,
+        ILoggerFactory loggerFactory)
     {
-        var (userId, tenantId) = GetUserContext(httpContext);
-
-        await EnsureBucketExistsAsync(s3Client);
-
-        using var stream = file.OpenReadStream();
-        var sha256Hash = await ComputeSha256HashAsync(stream);
-
+        var fileName = SafeFileName(file.FileName);
         var fileId = Guid.NewGuid();
-        var storagePath = $"{tenantId}/{fileId}_{file.FileName}";
+        var storagePath = $"{user.TenantId}/{fileId}_{fileName}";
+
+        await using var stream = file.OpenReadStream();
+        var sha256Hash = await ComputeSha256HashAsync(stream);
         stream.Position = 0;
-        
-        await s3Client.PutObjectAsync(new PutObjectRequest
-        {
-            BucketName = BucketName,
-            Key = storagePath,
-            InputStream = stream
-        });
 
-        var document = new Document(Guid.NewGuid(), tenantId, title, category, userId);
-        var version = new DocumentVersion(
-            fileId,
-            document.Id,
-            versionNumber: 1,
-            storagePath: storagePath,
-            fileName: file.FileName,
-            fileSize: file.Length,
-            mimeType: file.ContentType,
-            sha256Hash: sha256Hash,
-            createdBy: userId,
-            changeComment: "Initial Upload"
-        );
+        await storage.SaveAsync(storagePath, stream);
 
-        document.Versions.Add(version);
-        document.CurrentVersionId = version.VersionId;
-        document.CurrentVersion = version;
+        var document = new Document(Guid.NewGuid(), user.TenantId, title, category, user.UserId);
+        var version = document.AddVersion(
+            fileId, storagePath, fileName, file.Length, file.ContentType, sha256Hash, user.UserId, "Initial Upload");
 
         dbContext.Documents.Add(document);
-        await dbContext.SaveChangesAsync();
+        await SaveOrDiscardBlobAsync(dbContext, storage, storagePath, loggerFactory);
 
-        var userIdGuid = userId;
         await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
         {
-            TenantId = tenantId,
-            UserId = userIdGuid,
+            TenantId = user.TenantId,
+            UserId = user.UserId,
             ServiceName = "DocumentService",
             EntityType = "Document",
             EntityId = document.Id.ToString(),
@@ -104,72 +86,45 @@ public static class DocumentEndpoints
         return Results.Ok(new { DocumentId = document.Id, VersionId = version.VersionId, Message = "Document uploaded successfully." });
     }
 
-    private static async Task<IResult> UploadNewVersionAsync(
+    internal static async Task<IResult> UploadNewVersionAsync(
         Guid id,
+        UserContext user,
         HttpContext httpContext,
         IFormFile file,
-        string changeComment,
+        [FromForm] string changeComment,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client,
-        IEventBus eventBus)
+        IDocumentStorage storage,
+        IEventBus eventBus,
+        ILoggerFactory loggerFactory)
     {
-        var (userId, tenantId) = GetUserContext(httpContext);
-
         var document = await dbContext.Documents
             .Include(d => d.Versions)
-            .FirstOrDefaultAsync(d => d.Id == id && d.TenantId == tenantId);
+            .FirstOrDefaultAsync(d => d.Id == id && d.TenantId == user.TenantId);
 
         if (document == null)
         {
             return Results.NotFound();
         }
 
-        await EnsureBucketExistsAsync(s3Client);
-
-        using var stream = file.OpenReadStream();
-        var sha256Hash = await ComputeSha256HashAsync(stream);
-
+        var fileName = SafeFileName(file.FileName);
         var fileId = Guid.NewGuid();
-        var storagePath = $"{tenantId}/{fileId}_{file.FileName}";
+        var storagePath = $"{user.TenantId}/{fileId}_{fileName}";
+
+        await using var stream = file.OpenReadStream();
+        var sha256Hash = await ComputeSha256HashAsync(stream);
         stream.Position = 0;
 
-        await s3Client.PutObjectAsync(new PutObjectRequest
-        {
-            BucketName = BucketName,
-            Key = storagePath,
-            InputStream = stream
-        });
+        await storage.SaveAsync(storagePath, stream);
 
-        foreach (var oldVer in document.Versions)
-        {
-            oldVer.IsCurrent = false;
-        }
+        var version = document.AddVersion(
+            fileId, storagePath, fileName, file.Length, file.ContentType, sha256Hash, user.UserId, changeComment ?? string.Empty);
 
-        var nextVersionNumber = document.Versions.Count + 1;
-        var version = new DocumentVersion(
-            fileId,
-            document.Id,
-            versionNumber: nextVersionNumber,
-            storagePath: storagePath,
-            fileName: file.FileName,
-            fileSize: file.Length,
-            mimeType: file.ContentType,
-            sha256Hash: sha256Hash,
-            createdBy: userId,
-            changeComment: changeComment
-        );
+        await SaveOrDiscardBlobAsync(dbContext, storage, storagePath, loggerFactory);
 
-        document.Versions.Add(version);
-        document.CurrentVersionId = version.VersionId;
-        document.CurrentVersion = version;
-
-        await dbContext.SaveChangesAsync();
-
-        var userIdGuid = userId;
         await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
         {
-            TenantId = tenantId,
-            UserId = userIdGuid,
+            TenantId = user.TenantId,
+            UserId = user.UserId,
             ServiceName = "DocumentService",
             EntityType = "DocumentVersion",
             EntityId = version.VersionId.ToString(),
@@ -186,65 +141,51 @@ public static class DocumentEndpoints
         return Results.Ok(new { DocumentId = document.Id, VersionId = version.VersionId, Message = "New document version uploaded successfully." });
     }
 
-    private static async Task<IResult> GetDocumentVersionsAsync(
+    internal static async Task<IResult> GetDocumentVersionsAsync(
         Guid id,
-        HttpContext httpContext,
+        UserContext user,
         DocumentDbContext dbContext)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
-
         var versions = await dbContext.DocumentVersions
-            .Where(v => v.DocumentId == id && v.Document.TenantId == tenantId)
+            .AsNoTracking()
+            .Where(v => v.DocumentId == id && v.Document.TenantId == user.TenantId)
             .OrderByDescending(v => v.VersionNumber)
-            .Select(v => new
-            {
-                v.VersionId,
-                v.VersionNumber,
-                v.FileName,
-                v.FileSize,
-                v.MIMEType,
-                v.SHA256Hash,
-                v.CreatedBy,
-                v.CreatedDate,
-                v.ChangeComment,
-                v.IsCurrent
-            })
             .ToListAsync();
 
-        return Results.Ok(versions);
+        return Results.Ok(versions.Select(DocumentVersionResponse.From));
     }
 
-    private static async Task<IResult> DownloadCurrentVersionAsync(
+    internal static async Task<IResult> DownloadCurrentVersionAsync(
         Guid id,
+        UserContext user,
         HttpContext httpContext,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client,
+        IDocumentStorage storage,
         IEventBus eventBus)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
+        var version = await dbContext.DocumentVersions
+            .AsNoTracking()
+            .Where(v => v.DocumentId == id && v.IsCurrent && v.Document.TenantId == user.TenantId)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync();
 
-        var document = await dbContext.Documents
-            .Include(d => d.CurrentVersion)
-            .FirstOrDefaultAsync(d => d.Id == id && d.TenantId == tenantId);
-
-        if (document == null || document.CurrentVersion == null)
+        if (version == null)
         {
             return Results.NotFound();
         }
 
-        var response = await s3Client.GetObjectAsync(BucketName, document.CurrentVersion.StoragePath);
+        var content = await storage.OpenReadAsync(version.StoragePath);
 
-        var userIdGuid = Guid.TryParse(httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : Guid.Empty;
         await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
         {
-            TenantId = tenantId,
-            UserId = userIdGuid,
+            TenantId = user.TenantId,
+            UserId = user.UserId,
             ServiceName = "DocumentService",
             EntityType = "Document",
-            EntityId = document.Id.ToString(),
+            EntityId = id.ToString(),
             Action = "Download",
             OldValues = string.Empty,
-            NewValues = $"FileName: {document.CurrentVersion.FileName}",
+            NewValues = $"FileName: {version.FileName}",
             IPAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
             UserAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "Unknown",
             CorrelationId = httpContext.TraceIdentifier,
@@ -252,35 +193,33 @@ public static class DocumentEndpoints
             Outcome = "Success"
         });
 
-        return Results.File(response.ResponseStream, document.CurrentVersion.MIMEType, document.CurrentVersion.FileName);
+        return Results.File(content, version.MIMEType, version.FileName);
     }
 
-    private static async Task<IResult> DownloadSpecificVersionAsync(
+    internal static async Task<IResult> DownloadSpecificVersionAsync(
         Guid id,
         Guid versionId,
+        UserContext user,
         HttpContext httpContext,
         DocumentDbContext dbContext,
-        IAmazonS3 s3Client,
+        IDocumentStorage storage,
         IEventBus eventBus)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
-
         var version = await dbContext.DocumentVersions
-            .Include(v => v.Document)
-            .FirstOrDefaultAsync(v => v.VersionId == versionId && v.DocumentId == id && v.Document.TenantId == tenantId);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.VersionId == versionId && v.DocumentId == id && v.Document.TenantId == user.TenantId);
 
         if (version == null)
         {
             return Results.NotFound();
         }
 
-        var response = await s3Client.GetObjectAsync(BucketName, version.StoragePath);
+        var content = await storage.OpenReadAsync(version.StoragePath);
 
-        var userIdGuid = Guid.TryParse(httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : Guid.Empty;
         await eventBus.PublishAsync(new AuditLogCreatedIntegrationEvent
         {
-            TenantId = tenantId,
-            UserId = userIdGuid,
+            TenantId = user.TenantId,
+            UserId = user.UserId,
             ServiceName = "DocumentService",
             EntityType = "DocumentVersion",
             EntityId = version.VersionId.ToString(),
@@ -294,52 +233,68 @@ public static class DocumentEndpoints
             Outcome = "Success"
         });
 
-        return Results.File(response.ResponseStream, version.MIMEType, version.FileName);
+        return Results.File(content, version.MIMEType, version.FileName);
     }
 
-    private static async Task<IResult> GetMetadataAsync(
+    internal static async Task<IResult> GetMetadataAsync(
         Guid id,
-        HttpContext httpContext,
+        UserContext user,
         DocumentDbContext dbContext)
     {
-        var (_, tenantId) = GetUserContext(httpContext);
-
         var document = await dbContext.Documents
-            .Include(d => d.CurrentVersion)
-            .FirstOrDefaultAsync(d => d.Id == id && d.TenantId == tenantId);
+            .AsNoTracking()
+            .Include(d => d.Versions)
+            .FirstOrDefaultAsync(d => d.Id == id && d.TenantId == user.TenantId);
 
         if (document == null)
         {
             return Results.NotFound();
         }
 
-        return Results.Ok(document);
+        return Results.Ok(DocumentResponse.From(document));
     }
 
-    private static (Guid UserId, Guid TenantId) GetUserContext(HttpContext httpContext)
+    /// <summary>
+    /// The blob is written before the database row, so a failed save would leave an object nothing references.
+    /// On <see cref="DbUpdateException"/> the blob is deleted (best effort, logged if that also fails) and the
+    /// original exception is rethrown.
+    /// </summary>
+    private static async Task SaveOrDiscardBlobAsync(
+        DocumentDbContext dbContext,
+        IDocumentStorage storage,
+        string storagePath,
+        ILoggerFactory loggerFactory)
     {
-        var userIdStr = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var tenantIdStr = httpContext.User.FindFirstValue("organizationId") ?? httpContext.User.FindFirstValue("tenant_id");
-
-        var userId = Guid.TryParse(userIdStr, out var u) ? u : Guid.Empty;
-        var tenantId = Guid.TryParse(tenantIdStr, out var t) ? t : Guid.Empty;
-
-        return (userId, tenantId);
-    }
-
-    private static async Task EnsureBucketExistsAsync(IAmazonS3 s3Client)
-    {
-        var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(s3Client, BucketName);
-        if (!bucketExists)
+        try
         {
-            await s3Client.PutBucketAsync(BucketName);
+            await dbContext.SaveChangesAsync();
         }
+        catch (DbUpdateException)
+        {
+            var logger = loggerFactory.CreateLogger(typeof(DocumentEndpoints).FullName!);
+            try
+            {
+                await storage.DeleteAsync(storagePath);
+            }
+            catch (DocumentStorageException cleanupFailure)
+            {
+                logger.LogError(cleanupFailure, "Saving the document row failed and the uploaded blob {StoragePath} could not be removed; it is orphaned.", storagePath);
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>Strips any directory part a client put in the file name so it cannot shape the object key.</summary>
+    private static string SafeFileName(string? fileName)
+    {
+        var name = Path.GetFileName(fileName ?? string.Empty);
+        return string.IsNullOrWhiteSpace(name) ? "file" : name;
     }
 
     private static async Task<string> ComputeSha256HashAsync(Stream stream)
     {
-        using var sha256 = SHA256.Create();
-        var hashBytes = await sha256.ComputeHashAsync(stream);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        var hashBytes = await SHA256.HashDataAsync(stream);
+        return Convert.ToHexStringLower(hashBytes);
     }
 }

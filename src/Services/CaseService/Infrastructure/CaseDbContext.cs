@@ -19,13 +19,20 @@ public class CaseDbContext : DbContext
         modelBuilder.Entity<Case>(entity =>
         {
             entity.HasKey(x => x.Id);
+            // Ids are assigned by the domain constructors. Without ValueGeneratedNever, EF treats a child that has a
+            // pre-assigned GUID and is added to an already-tracked parent as an existing row and issues an UPDATE
+            // (DbUpdateConcurrencyException) instead of an INSERT.
+            entity.Property(x => x.Id).ValueGeneratedNever();
             entity.ToTable("Cases");
-            entity.HasIndex(x => x.CaseNumber).IsUnique();
+            // Case numbers are unique per tenant, matching the duplicate check in CreateCaseAsync. A global index let
+            // one tenant's number block every other tenant.
+            entity.HasIndex(x => new { x.TenantId, x.CaseNumber }).IsUnique();
         });
 
         modelBuilder.Entity<CaseTimeline>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
             entity.ToTable("CaseTimelines");
 
             entity.HasOne(x => x.Case)

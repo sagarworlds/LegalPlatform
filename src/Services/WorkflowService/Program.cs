@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using ServiceDefaults.Security;
 using WorkflowService.Endpoints;
 using WorkflowService.Infrastructure;
 
@@ -35,7 +36,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddPlatformAuthorization();
 
 builder.Services.AddEventBus(builder.Configuration);
 

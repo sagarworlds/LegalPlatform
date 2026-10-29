@@ -13,6 +13,7 @@ using AuditService.Consumers;
 using AuditService.Endpoints;
 using AuditService.Infrastructure;
 using EventBus;
+using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,7 +43,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddPlatformAuthorization();
 
 builder.Services.AddEventBus(builder.Configuration, x =>
 {

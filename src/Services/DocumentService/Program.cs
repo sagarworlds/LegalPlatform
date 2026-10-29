@@ -11,7 +11,9 @@ using Microsoft.OpenApi.Models;
 using Amazon.S3;
 using DocumentService.Endpoints;
 using DocumentService.Infrastructure;
+using DocumentService.Storage;
 using EventBus;
+using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +43,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddPlatformAuthorization();
 
 var minioEndpoint = builder.Configuration.GetConnectionString("minio") ?? "http://localhost:9000";
 var s3Config = new AmazonS3Config
@@ -50,6 +52,7 @@ var s3Config = new AmazonS3Config
     ForcePathStyle = true
 };
 builder.Services.AddSingleton<IAmazonS3>(new AmazonS3Client("minioadmin", "minioadmin", s3Config));
+builder.Services.AddSingleton<IDocumentStorage, S3DocumentStorage>();
 
 builder.Services.AddEventBus(builder.Configuration);
 
