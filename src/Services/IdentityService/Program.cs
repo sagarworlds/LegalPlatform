@@ -8,6 +8,7 @@ using IdentityService.Domain;
 using IdentityService.Endpoints;
 using IdentityService.Infrastructure;
 using EventBus;
+using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +28,12 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     .AddEntityFrameworkStores<IdentityDbContext>()
     .AddDefaultTokenProviders();
 
+// Registered after AddIdentity so bearer authentication, not Identity's cookie scheme, is the default.
+// Needed to read the caller's token on /register and to authorize the user administration endpoints.
+builder.Services.AddPlatformJwtAuthentication(builder.Configuration);
+
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IdentityDataSeeder>();
 
 builder.Services.AddEventBus(builder.Configuration);
 
@@ -38,6 +44,9 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -47,17 +56,11 @@ if (app.Environment.IsDevelopment())
     var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
 
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
-    string[] roles = { "Admin", "User", "Attorney", "Paralegal", "Client" };
-    foreach (var role in roles)
-    {
-        if (!await roleManager.RoleExistsAsync(role))
-        {
-            await roleManager.CreateAsync(new ApplicationRole(role));
-        }
-    }
+    // Seeds every role in ServiceDefaults.Security.Roles and the optional BootstrapAdmin account.
+    await scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>().SeedAsync();
 }
 
 app.MapIdentityEndpoints();
+app.MapUserAdministrationEndpoints();
 
 app.Run();

@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OrganizationService.Domain;
 using OrganizationService.Infrastructure;
+using OrganizationService.Models;
 using EventBus.Abstractions;
 using Contracts;
+using ServiceDefaults.Security;
 
 namespace OrganizationService.Endpoints;
 
@@ -13,9 +16,12 @@ public static class OrganizationEndpoints
 {
     public static IEndpointRouteBuilder MapOrganizationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/v1/organizations");
+        // These endpoints were anonymous: anyone could create tenants and read any organization by id.
+        var group = endpoints.MapGroup("/api/v1/organizations").RequireAuthorization(Policies.AuthenticatedUser);
 
-        group.MapPost("/", CreateOrganizationAsync);
+        // Creating an organization creates a tenant, so it is a platform-level operation.
+        group.MapPost("/", CreateOrganizationAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = Roles.SystemAdmin });
         group.MapGet("/{id:guid}", GetOrganizationAsync);
 
         return endpoints;
@@ -23,7 +29,7 @@ public static class OrganizationEndpoints
 
     public record CreateOrganizationRequest(string Name, string TenantId, string Domain);
 
-    private static async Task<IResult> CreateOrganizationAsync(
+    internal static async Task<IResult> CreateOrganizationAsync(
         CreateOrganizationRequest request,
         OrganizationDbContext dbContext,
         IEventBus eventBus)
@@ -51,17 +57,25 @@ public static class OrganizationEndpoints
             TenantId = organization.TenantId
         });
 
-        return Results.Created($"/api/v1/organizations/{organization.Id}", organization);
+        return Results.Created($"/api/v1/organizations/{organization.Id}", OrganizationResponse.From(organization));
     }
 
-    private static async Task<IResult> GetOrganizationAsync(Guid id, OrganizationDbContext dbContext)
+    /// <summary>A user's <c>organizationId</c> claim is the organization's Id, so members may read their own organization and SystemAdmin any.</summary>
+    internal static async Task<IResult> GetOrganizationAsync(Guid id, UserContext user, OrganizationDbContext dbContext)
     {
-        var organization = await dbContext.Organizations.FindAsync(id);
+        if (!user.IsInRole(Roles.SystemAdmin) && user.TenantId != id)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Not a member of this organization");
+        }
+
+        var organization = await dbContext.Organizations.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         if (organization == null)
         {
             return Results.NotFound();
         }
 
-        return Results.Ok(organization);
+        return Results.Ok(OrganizationResponse.From(organization));
     }
 }

@@ -8,6 +8,7 @@ using UserService.Infrastructure;
 using UserService.Consumers;
 using EventBus;
 using MassTransit;
+using ServiceDefaults.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,9 @@ builder.AddServiceDefaults();
 
 // PostgreSQL Database integration via Aspire resource connection
 builder.AddNpgsqlDbContext<UserDbContext>("user-db");
+
+// Validates tokens issued by IdentityService; the endpoints used to be anonymous.
+builder.Services.AddPlatformJwtAuthentication(builder.Configuration);
 
 // EventBus with registered consumer
 builder.Services.AddEventBus(builder.Configuration, cfg =>
@@ -28,6 +32,9 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
